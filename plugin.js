@@ -1,5 +1,5 @@
 /**
- * Penpot AI Assistant (OpenRouter) — v1.1.0
+ * Penpot AI Assistant (OpenRouter) — v1.1.1
  * ------------------------------------------
  * ИИ-помощник для Penpot:
  *   - чат-советы по дизайну (модель отвечает текстом в панели);
@@ -71,17 +71,14 @@ penpot.ui.onMessage((message) => {
     }
 
     case "create-image": {
-      const imgUrl = String(message.imageUrl || "");
       const prompt = String(message.prompt || "AI Image");
       const width = clampNum(message.width || 512, 64, 4096);
       const height = clampNum(message.height || 512, 64, 4096);
+      const base64 = message.imageBase64 ? String(message.imageBase64) : "";
+      const mime = String(message.mime || "image/jpeg");
+      const imgUrl = String(message.imageUrl || "");
 
-      if (!imgUrl) {
-        sendToUI({ type: "image-result", ok: false, error: "URL изображения пуст" });
-        break;
-      }
-
-      penpot.uploadMediaUrl(prompt.slice(0, 32), imgUrl)
+      loadImageMedia(prompt, base64, mime, imgUrl)
         .then((media) => {
           const sel = penpot.selection || [];
           if (sel.length > 0 && sel[0].fills) {
@@ -106,6 +103,52 @@ penpot.ui.onMessage((message) => {
     }
   }
 });
+
+/**
+ * Загружает изображение в Penpot.
+ * Предпочтительно — из base64-данных (uploadMediaData), без повторного сетевого запроса.
+ * Fallback — из URL (uploadMediaUrl) с повторными попытками.
+ */
+function loadImageMedia(name, base64, mime, url) {
+  const mediaName = String(name || "AI Image").slice(0, 32);
+
+  if (base64) {
+    try {
+      const bytes = base64ToUint8(base64);
+      return penpot.uploadMediaData(mediaName, bytes, mime);
+    } catch (e) {
+      // если декодирование не удалось — пробуем через URL ниже
+    }
+  }
+
+  if (!url) {
+    return Promise.reject(new Error("Нет данных изображения"));
+  }
+  return retry(function () {
+    return penpot.uploadMediaUrl(mediaName, url);
+  }, 3, 1500);
+}
+
+/** Повторяет вызов функции до `attempts` раз с задержкой `delay` мс. */
+function retry(fn, attempts, delay) {
+  return fn().catch((err) => {
+    if (attempts <= 1) throw err;
+    return new Promise((resolve) => setTimeout(resolve, delay))
+      .then(() => retry(fn, attempts - 1, delay));
+  });
+}
+
+/** Преобразует base64 (или data URL) в Uint8Array. */
+function base64ToUint8(input) {
+  const clean = input.indexOf(",") !== -1 ? input.split(",")[1] : input;
+  const bin = atob(clean);
+  const len = bin.length;
+  const bytes = new Uint8Array(len);
+  for (let i = 0; i < len; i++) {
+    bytes[i] = bin.charCodeAt(i);
+  }
+  return bytes;
+}
 
 function sendToUI(payload) {
   try {

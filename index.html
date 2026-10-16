@@ -646,38 +646,73 @@
     var h = parseInt(parts[1], 10) || 512;
     var seed = Math.floor(Math.random() * 1000000);
 
-    // Высококачественный открытый AI генератор (Flux/Stable Diffusion) с открытым CORS
+    // Открытый AI-генератор (Flux) с открытым CORS
     var imageUrl = "https://image.pollinations.ai/prompt/" + encodeURIComponent(promptText) +
       "?width=" + w + "&height=" + h + "&nologo=true&seed=" + seed + "&model=flux";
 
     addSys("ИИ рисует изображение (" + w + "×" + h + ")...");
 
-    // Предзагрузка для проверки и вывода в лог
-    var testImg = new Image();
-    testImg.onload = function () {
-      var d = document.createElement("div");
-      d.className = "msg ai";
-      d.innerHTML = "<div><b>Готово!</b> Добавляю на холст Penpot...</div><div class='img-card'><img src='" + imageUrl + "' /></div>";
-      els.log.appendChild(d);
-      els.log.scrollTop = els.log.scrollHeight;
+    // Скачиваем картинку в панели и передаём в плагин уже как данные —
+    // так плагину не нужно делать повторный сетевой запрос (он падал с «http error»).
+    fetchWithRetry(imageUrl, 3)
+      .then(function (blob) {
+        var objectUrl = URL.createObjectURL(blob);
+        var d = document.createElement("div");
+        d.className = "msg ai";
+        d.innerHTML = "<div><b>Готово!</b> Добавляю на холст Penpot...</div>" +
+          "<div class='img-card'><img src='" + objectUrl + "' /></div>";
+        els.log.appendChild(d);
+        els.log.scrollTop = els.log.scrollHeight;
 
-      // Отправляем плагину команду вставки на холст
-      parent.postMessage({
-        type: "create-image",
-        imageUrl: imageUrl,
-        prompt: promptText,
-        width: w,
-        height: h
-      }, "*");
-      setBusy(false);
-    };
+        return blobToBase64(blob).then(function (dataUrl) {
+          var m = /^data:([^;]+);base64,(.*)$/.exec(dataUrl);
+          if (!m) throw new Error("Не удалось декодировать изображение");
+          parent.postMessage({
+            type: "create-image",
+            imageBase64: m[2],
+            mime: m[1],
+            prompt: promptText,
+            width: w,
+            height: h
+          }, "*");
+        }).catch(function () {
+          // Fallback: передаём URL, плагин скачает сам (с ретраями)
+          parent.postMessage({
+            type: "create-image",
+            imageUrl: imageUrl,
+            prompt: promptText,
+            width: w,
+            height: h
+          }, "*");
+        });
+      })
+      .catch(function (err) {
+        addErr("Не удалось сгенерировать изображение: " + (err && err.message || err) + ". Попробуйте ещё раз.");
+      })
+      .finally(function () {
+        setBusy(false);
+      });
+  }
 
-    testImg.onerror = function () {
-      addErr("Не удалось сгенерировать изображение. Попробуйте другой запрос.");
-      setBusy(false);
-    };
+  /* fetch с повторными попытками */
+  function fetchWithRetry(url, attempts) {
+    return fetch(url, { cache: "no-store" }).then(function (res) {
+      if (!res.ok) throw new Error("HTTP " + res.status);
+      return res.blob();
+    }).catch(function (err) {
+      if (attempts <= 1) throw err;
+      return new Promise(function (r) { setTimeout(r, 1500); })
+        .then(function () { return fetchWithRetry(url, attempts - 1); });
+    });
+  }
 
-    testImg.src = imageUrl;
+  function blobToBase64(blob) {
+    return new Promise(function (resolve, reject) {
+      var reader = new FileReader();
+      reader.onloadend = function () { resolve(reader.result); };
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
   }
 
   function sendBuild(boards) {
