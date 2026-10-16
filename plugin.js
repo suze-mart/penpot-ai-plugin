@@ -1,5 +1,5 @@
 /**
- * Penpot AI Assistant (OpenRouter) — v1.0.2
+ * Penpot AI Assistant (OpenRouter) — v1.0.4
  * ------------------------------------------
  * ИИ-помощник для Penpot:
  *   - чат-советы по дизайну (модель отвечает текстом в панели);
@@ -18,7 +18,7 @@
  *   plugin -> UI: penpot.ui.sendMessage(msg)            -> window "message" в iframe
  */
 
-penpot.ui.open("AI Assistant (OpenRouter)", "");
+penpot.ui.open("AI Assistant (OpenRouter)", "index.html", { width: 380, height: 600 });
 
 penpot.ui.onMessage((message) => {
   if (!message || typeof message !== "object" || !message.type) return;
