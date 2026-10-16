@@ -1,15 +1,13 @@
 {
   "name": "AI Assistant (OpenRouter)",
-  "host": "https://suze-mart.github.io/penpot-ai-plugin",
+  "description": "ИИ-помощник для Penpot: чат-советы по дизайну и генерация макетов на холсте через OpenRouter (OpenAI-совместимый API). Ключ хранится локально в браузере.",
   "version": 2,
   "code": "plugin.js",
   "icon": "icon.svg",
-  "description": "ИИ-помощник для Penpot: чат-советы по дизайну и генерация макетов на холсте через OpenRouter (OpenAI-совместимый API). Ключ хранится локально в браузере.",
   "permissions": [
     "content:read",
     "content:write",
     "library:read",
-    "library:write",
-    "allow:localstorage"
+    "library:write"
   ]
 }
