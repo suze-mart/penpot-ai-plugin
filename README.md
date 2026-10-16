@@ -57,27 +57,18 @@
 
 ## Установка
 
-### Шаг 1. Публикация файлов (GitHub + jsDelivr CDN)
+### Шаг 1. Публикация файлов (GitHub Pages)
 
-Файлы лежат в репозитории `suze-mart/penpot-ai-plugin` (ветка `main`).
-Для Penpot Cloud используется **jsDelivr CDN** — он проксирует файлы из GitHub
-и поддерживает полный CORS (включая preflight OPTIONS), что требуется для установки.
-
-Манифест доступен по адресу:
-`https://cdn.jsdelivr.net/gh/suze-mart/penpot-ai-plugin@main/manifest.json`
-
-> **Почему не GitHub Pages:** GitHub Pages отдаёт `Access-Control-Allow-Origin: *`
-> только на простые GET-запросы, но не обрабатывает предварительный OPTIONS-запрос
-> (отвечает 405 без CORS-заголовков). Penpot Cloud шлёт такой запрос из браузера —
-> установка падает с «Произошло что-то неладное». jsDelivr и Netlify/Cloudflare
-> поддерживают CORS полностью.
+Файлы размещены в репозитории `suze-mart/penpot-ai-plugin` (ветка `main`) и раздаются через GitHub Pages:
+- Манифест: `https://suze-mart.github.io/penpot-ai-plugin/manifest.json`
+- UI: `https://suze-mart.github.io/penpot-ai-plugin/index.html` (отдаётся как `text/html`)
 
 ### Шаг 2. Установка в Penpot
 
-1. Откройте любой **проект → файл** в Penpot (Cloud).
+1. Откройте любой **проект → файл** в Penpot.
 2. Откройте **Plugin Manager** (кнопка «Plugins» в меню или `Ctrl+Alt+P`).
 3. Нажмите **Add plugin** и вставьте ссылку на манифест:
-   `https://cdn.jsdelivr.net/gh/suze-mart/penpot-ai-plugin@main/manifest.json`
+   `https://suze-mart.github.io/penpot-ai-plugin/manifest.json`
 4. Нажмите **Install**. Плагин появится в списке и запускается из меню «Plugins».
 
 > При обновлении кода jsDelivr обновляет кэш с небольшой задержкой; для
