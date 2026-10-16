@@ -2,6 +2,12 @@
 
 Записи в обратном хронологическом порядке. Все изменения фиксируются с таймстампом (ISO 8601, UTC).
 
+## [1.0.3] — 2026-10-16T20:31:00Z
+- Миграция хостинга для установки: **jsDelivr CDN** (`cdn.jsdelivr.net/gh/suze-mart/penpot-ai-plugin@main`)
+  вместо GitHub Pages. Причина: Penpot Cloud требует полный CORS (включая preflight OPTIONS),
+  а GitHub Pages на OPTIONS отвечает 405 без CORS-заголовков → «Произошло что-то неладное».
+- GitHub Pages остаётся резервным/самостоятельным хостингом (работает для self-hosted Penpot).
+
 ## [1.0.2] — 2026-10-16T20:25:00Z
 - Исправление установки: `manifest.json` приведён к официальному шаблону —
   удалены поле `host` и невалидный permission `allow:localstorage`

@@ -57,33 +57,31 @@
 
 ## Установка
 
-### Шаг 1. Публикация файлов (GitHub Pages)
+### Шаг 1. Публикация файлов (GitHub + jsDelivr CDN)
 
-1. Создайте **публичный** репозиторий на GitHub (например, `penpot-ai-plugin`).
-2. Загрузите содержимое этой папки в корень репозитория (ветка `main`):
-   `manifest.json`, `plugin.js`, `index.html`, `icon.svg`, `README.md`, `CHANGELOG.md`.
-3. В GitHub: **Settings → Pages → Build and deployment → Source: Deploy from a branch →
-   Branch: `main` / `/ (root)`** → Save.
-4. Через 1–2 минуты плагин будет доступен по адресу:
-   `https://<ваш-логин>.github.io/<имя-репозитория>/`
-5. **Важно:** в `manifest.json` поле `host` замените на ваш итоговый адрес:
-   `https://<ваш-логин>.github.io/<имя-репозитория>`.
+Файлы лежат в репозитории `suze-mart/penpot-ai-plugin` (ветка `main`).
+Для Penpot Cloud используется **jsDelivr CDN** — он проксирует файлы из GitHub
+и поддерживает полный CORS (включая preflight OPTIONS), что требуется для установки.
 
-> **Если GitHub Pages не подойдёт** (например, понадобятся заголовки CORS):
-> используйте Netlify Drop (https://app.netlify.com/drop) или Cloudflare Pages —
-> загрузите те же файлы, в Netlify добавьте `_headers`:
-> ```
-> /*
->   Access-Control-Allow-Origin: *
-> ```
+Манифест доступен по адресу:
+`https://cdn.jsdelivr.net/gh/suze-mart/penpot-ai-plugin@main/manifest.json`
+
+> **Почему не GitHub Pages:** GitHub Pages отдаёт `Access-Control-Allow-Origin: *`
+> только на простые GET-запросы, но не обрабатывает предварительный OPTIONS-запрос
+> (отвечает 405 без CORS-заголовков). Penpot Cloud шлёт такой запрос из браузера —
+> установка падает с «Произошло что-то неладное». jsDelivr и Netlify/Cloudflare
+> поддерживают CORS полностью.
 
 ### Шаг 2. Установка в Penpot
 
 1. Откройте любой **проект → файл** в Penpot (Cloud).
-2. Откройте **Plugin Manager** (кнопка «Plugins» в меню).
+2. Откройте **Plugin Manager** (кнопка «Plugins» в меню или `Ctrl+Alt+P`).
 3. Нажмите **Add plugin** и вставьте ссылку на манифест:
-   `https://<ваш-логин>.github.io/<имя-репозитория>/manifest.json`
+   `https://cdn.jsdelivr.net/gh/suze-mart/penpot-ai-plugin@main/manifest.json`
 4. Нажмите **Install**. Плагин появится в списке и запускается из меню «Plugins».
+
+> При обновлении кода jsDelivr обновляет кэш с небольшой задержкой; для
+> гарантированной версии можно указывать конкретный коммит: `@<sha>` вместо `@main`.
 
 ## Настройка и использование
 
