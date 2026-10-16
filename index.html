@@ -18,6 +18,7 @@
     --border: #3a3a55;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
   body {
     font-family: "Segoe UI", -apple-system, Roboto, sans-serif;
     background: var(--bg);
@@ -32,7 +33,7 @@
     display: flex;
     align-items: center;
     gap: 8px;
-    padding: 8px 10px;
+    padding: 9px 12px;
     background: var(--bg2);
     border-bottom: 1px solid var(--border);
   }
@@ -47,16 +48,16 @@
   header .status.ok { color: var(--ok); }
 
   /* Режимы */
-  .modes { display: flex; gap: 4px; padding: 6px 8px 0; }
+  .modes { display: flex; gap: 6px; padding: 10px 12px 0; }
   .modes button {
     flex: 1;
-    padding: 6px 2px;
+    padding: 8px 4px;
     border: 1px solid var(--border);
     background: var(--bg2);
     color: var(--muted);
-    border-radius: 7px;
+    border-radius: 8px;
     cursor: pointer;
-    font-size: 11.5px;
+    font-size: 13px;
     font-weight: 500;
   }
   .modes button.active {
@@ -65,131 +66,94 @@
     border-color: transparent;
   }
 
-  /* Чат / Лог */
+  /* Лог диалога — расширен */
   #log {
-    flex: 1;
+    flex: 1 1 auto;
+    min-height: 220px;
     overflow-y: auto;
-    padding: 8px 10px;
+    padding: 12px;
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 10px;
   }
-  .msg { max-width: 94%; padding: 7px 10px; border-radius: 9px; line-height: 1.45; white-space: pre-wrap; word-wrap: break-word; }
+  .msg { max-width: 92%; padding: 9px 12px; border-radius: 10px; line-height: 1.5; white-space: pre-wrap; word-wrap: break-word; }
   .msg.user { align-self: flex-end; background: var(--accent); color: #fff; }
   .msg.ai   { align-self: flex-start; background: var(--bg3); }
   .msg.sys  { align-self: center; font-size: 11px; color: var(--muted); background: none; }
   .msg.err  { align-self: flex-start; background: rgba(248,113,113,.15); color: var(--err); border: 1px solid var(--err); }
-  .img-card { margin-top: 6px; border-radius: 6px; overflow: hidden; border: 1px solid var(--border); max-width: 220px; }
+  .img-card { margin-top: 8px; border-radius: 8px; overflow: hidden; border: 1px solid var(--border); max-width: 320px; }
   .img-card img { width: 100%; display: block; }
 
-  /* Чипы */
-  .chips { display: flex; flex-wrap: wrap; gap: 5px; padding: 0 10px 6px; }
-  .chips button {
-    padding: 3px 8px;
-    border: 1px solid var(--border);
-    border-radius: 16px;
-    background: var(--bg2);
-    color: var(--muted);
-    font-size: 11px;
-    cursor: pointer;
+  /* Панель активной модели */
+  #activeModel {
+    display: flex; align-items: center; gap: 6px;
+    padding: 6px 12px 0;
+    font-size: 11px; color: var(--muted);
   }
-  .chips button:hover { color: var(--text); border-color: var(--accent); }
+  #activeModel .badge {
+    background: var(--bg3); border: 1px solid var(--border);
+    padding: 2px 8px; border-radius: 12px; color: var(--text);
+  }
 
-  /* Настройки изображения */
-  #imgOptions { display: none; padding: 0 10px 6px; gap: 8px; align-items: center; font-size: 11px; color: var(--muted); flex-wrap: wrap; }
+  /* Опции изображения */
+  #imgOptions { display: none; padding: 6px 12px 0; gap: 10px; align-items: center; font-size: 12px; color: var(--muted); flex-wrap: wrap; }
   #imgOptions.open { display: flex; }
   #imgOptions select {
-    padding: 3px 6px;
-    border-radius: 6px;
-    border: 1px solid var(--border);
-    background: var(--bg2);
-    color: var(--text);
-    font-size: 11px;
+    padding: 5px 8px; border-radius: 7px; border: 1px solid var(--border);
+    background: var(--bg2); color: var(--text); font-size: 12px;
   }
 
   /* JSON макета */
-  #jsonWrap { display: none; padding: 0 10px 6px; flex-direction: column; gap: 4px; }
+  #jsonWrap { display: none; padding: 8px 12px 0; flex-direction: column; gap: 6px; }
   #jsonWrap.open { display: flex; }
   #jsonArea {
-    width: 100%;
-    height: 70px;
-    resize: vertical;
-    padding: 6px;
-    border-radius: 7px;
-    border: 1px solid var(--border);
-    background: #17171f;
-    color: #a5e075;
-    font-family: Consolas, monospace;
-    font-size: 10.5px;
-    white-space: pre;
+    width: 100%; height: 110px; resize: vertical; padding: 8px;
+    border-radius: 8px; border: 1px solid var(--border);
+    background: #17171f; color: #a5e075;
+    font-family: Consolas, monospace; font-size: 11.5px; white-space: pre;
   }
   #sendJsonBtn {
-    align-self: flex-end;
-    padding: 4px 10px;
-    border: none;
-    border-radius: 6px;
-    background: var(--ok);
-    color: #06281a;
-    font-weight: 700;
-    font-size: 11px;
-    cursor: pointer;
+    align-self: flex-end; padding: 6px 12px; border: none; border-radius: 7px;
+    background: var(--ok); color: #06281a; font-weight: 700; font-size: 12px; cursor: pointer;
   }
 
-  /* Промпт */
-  #promptRow { display: flex; gap: 6px; padding: 6px 10px 8px; }
+  /* Ввод */
+  #promptRow { display: flex; gap: 8px; padding: 10px 12px 12px; }
   #prompt {
-    flex: 1;
-    resize: none;
-    height: 44px;
-    padding: 6px 8px;
-    border-radius: 8px;
-    border: 1px solid var(--border);
-    background: var(--bg2);
-    color: var(--text);
-    font-family: inherit;
-    font-size: 12.5px;
+    flex: 1; resize: none; height: 74px; padding: 10px 12px;
+    border-radius: 10px; border: 1px solid var(--border);
+    background: var(--bg2); color: var(--text);
+    font-family: inherit; font-size: 13.5px; line-height: 1.45;
   }
   #sendBtn {
-    width: 48px;
-    border: none;
-    border-radius: 8px;
+    width: 56px; border: none; border-radius: 10px;
     background: linear-gradient(135deg, var(--accent), var(--accent2));
-    color: #fff;
-    font-weight: 700;
-    cursor: pointer;
+    color: #fff; font-weight: 700; font-size: 16px; cursor: pointer;
   }
   #sendBtn:disabled { opacity: .5; cursor: not-allowed; }
 
   /* Настройки */
-  details { border-top: 1px solid var(--border); padding: 8px 10px; background: var(--bg2); }
-  details summary { cursor: pointer; color: var(--muted); font-size: 12px; font-weight: 600; }
-  .field { display: flex; flex-direction: column; gap: 4px; margin-top: 8px; }
-  .field label { font-size: 11px; color: var(--muted); display: flex; justify-content: space-between; }
+  details { border-top: 1px solid var(--border); background: var(--bg2); }
+  details summary { cursor: pointer; color: var(--muted); font-size: 12.5px; font-weight: 600; padding: 10px 12px; }
+  .settings-body { padding: 0 12px 14px; }
+  .sec-title {
+    font-size: 11px; text-transform: uppercase; letter-spacing: .5px;
+    color: var(--accent); margin: 14px 0 4px; font-weight: 700;
+  }
+  .sec-desc { font-size: 11px; color: var(--muted); margin-bottom: 6px; }
+  .field { display: flex; flex-direction: column; gap: 5px; margin-top: 8px; }
+  .field label { font-size: 11.5px; color: var(--muted); display: flex; justify-content: space-between; align-items: center; }
   .field input, .field select {
-    padding: 6px 8px;
-    border-radius: 7px;
-    border: 1px solid var(--border);
-    background: var(--bg);
-    color: var(--text);
-    font-family: inherit;
-    font-size: 12px;
+    padding: 8px 10px; border-radius: 8px; border: 1px solid var(--border);
+    background: var(--bg); color: var(--text); font-family: inherit; font-size: 12.5px;
   }
-  .filter-row { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+  .filter-row { display: flex; flex-wrap: wrap; gap: 5px; }
   .filter-row button {
-    padding: 2px 7px;
-    font-size: 10px;
-    border-radius: 12px;
-    border: 1px solid var(--border);
-    background: var(--bg3);
-    color: var(--muted);
-    cursor: pointer;
+    padding: 3px 9px; font-size: 11px; border-radius: 12px;
+    border: 1px solid var(--border); background: var(--bg3); color: var(--muted); cursor: pointer;
   }
-  .filter-row button.active {
-    background: var(--accent);
-    color: #fff;
-    border-color: transparent;
-  }
-  .hint { font-size: 10.5px; color: var(--muted); margin-top: 6px; line-height: 1.35; }
+  .filter-row button.active { background: var(--accent); color: #fff; border-color: transparent; }
+  .hint { font-size: 11px; color: var(--muted); margin-top: 8px; line-height: 1.4; }
   a { color: var(--accent); text-decoration: none; }
   a:hover { text-decoration: underline; }
 </style>
@@ -209,7 +173,7 @@
 
   <div id="log"></div>
 
-  <div class="chips" id="chips"></div>
+  <div id="activeModel">Модель: <span class="badge" id="activeModelName">—</span></div>
 
   <div id="imgOptions">
     <span>Размер:</span>
@@ -218,7 +182,6 @@
       <option value="1344x768">16:9</option>
       <option value="768x1344">9:16</option>
     </select>
-    <span style="margin-left:auto; font-size:10.5px; color:var(--ok);" id="imgModelLabel">—</span>
   </div>
 
   <div id="jsonWrap">
@@ -227,26 +190,23 @@
   </div>
 
   <div id="promptRow">
-    <textarea id="prompt" placeholder='Опишите экран, например: "экран логина: фон светло-серый, карточка входа, две кнопки"'></textarea>
+    <textarea id="prompt" placeholder='Опишите экран: "экран логина: карточка, поля email и пароль, кнопка"'></textarea>
     <button id="sendBtn">➤</button>
   </div>
 
   <details id="settings">
-    <summary>⚙ Настройки, модели текста и рисования</summary>
+    <summary>⚙ Настройки</summary>
+    <div class="settings-body">
 
-    <div class="field">
-      <label for="apiKey">
-        <span>Ключ OpenRouter</span>
-        <a href="https://openrouter.ai/keys" target="_blank" rel="noopener">получить ключ ↗</a>
-      </label>
-      <input id="apiKey" type="password" placeholder="sk-or-v1-..." autocomplete="off" />
-    </div>
+      <div class="sec-title">1 · Ключ OpenRouter</div>
+      <div class="sec-desc">Один ключ используется и для текста, и для генерации изображений.</div>
+      <div class="field">
+        <label for="apiKey"><span>API-ключ</span><a href="https://openrouter.ai/keys" target="_blank" rel="noopener">получить ↗</a></label>
+        <input id="apiKey" type="password" placeholder="sk-or-v1-..." autocomplete="off" />
+      </div>
 
-    <div class="field">
-      <label>
-        <span>Текстовая модель (<span id="modelsCount">450+</span>)</span>
-        <a href="#" id="reloadModelsBtn">🔄 Обновить</a>
-      </label>
+      <div class="sec-title">2 · Текстовая модель</div>
+      <div class="sec-desc">Для режимов «📐 Макет» (генерация JSON-макета) и «💬 Совет» (ответы по дизайну).</div>
 
       <div class="filter-row" id="filterRow">
         <button data-filter="all" class="active">Все</button>
@@ -257,33 +217,29 @@
         <button data-filter="google">Gemini</button>
       </div>
 
-      <input id="modelSearch" type="text" placeholder="🔍 Поиск модели..." style="margin-top:4px;" />
+      <input id="modelSearch" type="text" placeholder="🔍 Поиск текстовой модели..." style="margin-top:6px;" />
 
-      <select id="modelSelect" style="margin-top:4px;">
+      <select id="modelSelect" style="margin-top:6px;">
         <option value="openai/gpt-4o-mini">OpenAI: GPT-4o-mini</option>
         <option value="meta-llama/llama-3.1-8b-instruct:free">🎁 Llama 3.1 8B (бесплатно)</option>
         <option value="deepseek/deepseek-chat-v3-0324:free">🎁 DeepSeek Chat (бесплатно)</option>
       </select>
-      <input id="model" placeholder="или ID вручную: openai/gpt-4o-mini" style="margin-top:4px;" />
-    </div>
+      <input id="model" placeholder="или ID вручную: openai/gpt-4o-mini" style="margin-top:6px;" />
 
-    <div class="field">
-      <label>
-        <span>🎨 Модель для рисования (<span id="imgModelsCount">12</span>)</span>
-        <a href="#" id="reloadImgModelsBtn">🔄 Обновить</a>
-      </label>
-      <select id="imgModelSelect" style="margin-top:4px;">
+      <div class="sec-title">3 · Модель для рисования</div>
+      <div class="sec-desc">Только для режима «🎨 Картинка». Здесь модели, у которых на выходе изображение (Nano Banana, GPT-5 Image и т.п.).</div>
+
+      <select id="imgModelSelect">
         <option value="google/gemini-2.5-flash-image">Google: Nano Banana (Gemini 2.5 Flash Image)</option>
         <option value="google/gemini-3.1-flash-image">Google: Nano Banana 2</option>
         <option value="openai/gpt-5-image-mini">OpenAI: GPT-5 Image Mini</option>
       </select>
-      <input id="imgModel" placeholder="или ID вручную: google/gemini-2.5-flash-image" style="margin-top:4px;" />
-      <div class="hint">Список — только модели с изображением на выходе. Генерация идёт вашим ключом OpenRouter, без водяных знаков.</div>
+      <input id="imgModel" placeholder="или ID вручную: google/gemini-2.5-flash-image" style="margin-top:6px;" />
+
+      <button id="saveBtn" style="margin-top:12px;padding:8px 14px;border:none;border-radius:8px;background:var(--accent2);color:#fff;font-weight:600;cursor:pointer;">Сохранить настройки</button>
+
+      <div class="hint">Ключ и модели хранятся локально в браузере. Текстовая и «рисующая» модели независимы: каждая применяется в своём режиме.</div>
     </div>
-
-    <button id="saveBtn" style="margin-top:8px;padding:6px 12px;border:none;border-radius:7px;background:var(--accent2);color:#fff;font-weight:600;cursor:pointer;">Сохранить настройки</button>
-
-    <div class="hint">Ключ и выбранные модели хранятся локально в вашем браузере.</div>
   </details>
 
 <script>
@@ -309,10 +265,9 @@
     modeDesign: document.getElementById("modeDesign"),
     modeImage: document.getElementById("modeImage"),
     modeAdvice: document.getElementById("modeAdvice"),
-    chips: document.getElementById("chips"),
+    activeModelName: document.getElementById("activeModelName"),
     imgOptions: document.getElementById("imgOptions"),
     imgRatio: document.getElementById("imgRatio"),
-    imgModelLabel: document.getElementById("imgModelLabel"),
     jsonWrap: document.getElementById("jsonWrap"),
     jsonArea: document.getElementById("jsonArea"),
     sendJsonBtn: document.getElementById("sendJsonBtn"),
@@ -320,13 +275,9 @@
     model: document.getElementById("model"),
     modelSelect: document.getElementById("modelSelect"),
     modelSearch: document.getElementById("modelSearch"),
-    reloadModelsBtn: document.getElementById("reloadModelsBtn"),
     filterRow: document.getElementById("filterRow"),
-    modelsCount: document.getElementById("modelsCount"),
     imgModel: document.getElementById("imgModel"),
     imgModelSelect: document.getElementById("imgModelSelect"),
-    imgModelsCount: document.getElementById("imgModelsCount"),
-    reloadImgModelsBtn: document.getElementById("reloadImgModelsBtn"),
     saveBtn: document.getElementById("saveBtn")
   };
 
@@ -338,65 +289,26 @@
   var allModels = [];
   var currentFilter = "all";
 
-  /* ---------- init ---------- */
   els.apiKey.value = apiKey;
   els.model.value = model;
   els.imgModel.value = imgModel;
   applyMode();
   updateStatus();
-  renderChips();
-  els.imgModelLabel.textContent = shortId(imgModel);
-  addSys("Плагин готов. Режимы: 📐 Макет · 🎨 Картинка · 💬 Совет. Настройки — внизу.");
+  addSys("Плагин готов. Текстовая модель — для «Макет» и «Совет», модель рисования — для «Картинка».");
 
   loadCachedModels();
   fetchModels(false);
 
   function shortId(id) { return String(id || "").split("/").pop(); }
 
-  /* ---------- Чипы ---------- */
-  function renderChips() {
-    els.chips.innerHTML = "";
-    var list = [];
-    if (mode === MODE_DESIGN) {
-      list = [
-        "Экран логина с карточкой и полями",
-        "Дашборд аналитики с графиками",
-        "Лендинг продукта: Hero и фичи",
-        "Мобильный профиль пользователя",
-        "Карточка товара с ценой и кнопкой"
-      ];
-    } else if (mode === MODE_IMAGE) {
-      list = [
-        "Минималистичный 3D-логотип финтех-компании",
-        "Современный офис IT-стартапа, естественный свет",
-        "Абстрактный градиентный фон для баннера",
-        "Иконка ракеты в стиле glassmorphism",
-        "Фото чашки капучино на деревянном столе",
-        "Изометрическая иллюстрация серверов"
-      ];
-    } else {
-      list = [
-        "Какие цвета лучше для медицинского сервиса?",
-        "Как настроить сетку 8px в Penpot?",
-        "Как улучшить читаемость таблицы данных?",
-        "Тренды мобильного UI 2026"
-      ];
-    }
-    list.forEach(function (text) {
-      var b = document.createElement("button");
-      b.textContent = text.length > 28 ? text.slice(0, 26) + "…" : text;
-      b.title = text;
-      b.addEventListener("click", function () { els.prompt.value = text; els.prompt.focus(); });
-      els.chips.appendChild(b);
-    });
+  function updateActiveModel() {
+    els.activeModelName.textContent = (mode === MODE_IMAGE) ? shortId(imgModel) : shortId(model);
   }
 
-  /* ---------- Режимы ---------- */
   function applyMode() {
     els.modeDesign.classList.toggle("active", mode === MODE_DESIGN);
     els.modeImage.classList.toggle("active", mode === MODE_IMAGE);
     els.modeAdvice.classList.toggle("active", mode === MODE_ADVICE);
-
     els.jsonWrap.classList.toggle("open", mode === MODE_DESIGN);
     els.imgOptions.classList.toggle("open", mode === MODE_IMAGE);
 
@@ -407,7 +319,7 @@
     } else {
       els.prompt.placeholder = 'Спросите совет по дизайну интерфейсов...';
     }
-    renderChips();
+    updateActiveModel();
   }
 
   els.modeDesign.addEventListener("click", function () { mode = MODE_DESIGN; localStorage.setItem(LS_MODE, mode); applyMode(); });
@@ -418,11 +330,7 @@
   function loadCachedModels() {
     try {
       var raw = localStorage.getItem(LS_CACHE_MODELS);
-      if (raw) {
-        allModels = JSON.parse(raw);
-        populateModelSelect();
-        populateImageModels();
-      }
+      if (raw) { allModels = JSON.parse(raw); populateModelSelect(); populateImageModels(); }
     } catch (_) {}
   }
 
@@ -439,9 +347,7 @@
           if (notify) addSys("✔ Загружено моделей: " + allModels.length);
         }
       })
-      .catch(function (err) {
-        if (notify) addErr("Не удалось загрузить модели: " + (err.message || err));
-      });
+      .catch(function (err) { if (notify) addErr("Не удалось загрузить модели: " + (err.message || err)); });
   }
 
   function isImageModel(m) {
@@ -449,10 +355,9 @@
   }
 
   function populateModelSelect() {
-    els.modelsCount.textContent = allModels.length || "450+";
     var query = (els.modelSearch.value || "").toLowerCase().trim();
     var filtered = allModels.filter(function (m) {
-      if (isImageModel(m)) return false;
+      if (isImageModel(m)) return false; // текстовый список без «рисующих» моделей
       var id = (m.id || "").toLowerCase();
       var name = (m.name || "").toLowerCase();
       if (currentFilter === "free" && id.indexOf(":free") === -1) return false;
@@ -469,7 +374,7 @@
       var o = document.createElement("option"); o.textContent = "Ничего не найдено"; o.disabled = true;
       els.modelSelect.appendChild(o); return;
     }
-    filtered.slice(0, 200).forEach(function (m) {
+    filtered.slice(0, 300).forEach(function (m) {
       var opt = document.createElement("option");
       opt.value = m.id;
       opt.textContent = (m.id.indexOf(":free") !== -1 ? "🎁 " : "") + (m.name || m.id);
@@ -480,9 +385,7 @@
 
   function populateImageModels() {
     var imgs = allModels.filter(isImageModel);
-    if (imgs.length) els.imgModelsCount.textContent = imgs.length;
     if (!imgs.length) return;
-
     els.imgModelSelect.innerHTML = "";
     imgs.forEach(function (m) {
       var opt = document.createElement("option");
@@ -497,7 +400,7 @@
   els.imgModelSelect.addEventListener("change", function () {
     els.imgModel.value = els.imgModelSelect.value;
     imgModel = els.imgModelSelect.value;
-    els.imgModelLabel.textContent = shortId(imgModel);
+    updateActiveModel();
   });
   els.modelSearch.addEventListener("input", populateModelSelect);
 
@@ -510,9 +413,6 @@
     }
   });
 
-  els.reloadModelsBtn.addEventListener("click", function (e) { e.preventDefault(); fetchModels(true); });
-  els.reloadImgModelsBtn.addEventListener("click", function (e) { e.preventDefault(); fetchModels(true); });
-
   /* ---------- Настройки ---------- */
   els.saveBtn.addEventListener("click", function () {
     apiKey = els.apiKey.value.trim();
@@ -521,8 +421,8 @@
     localStorage.setItem(LS_KEY, apiKey);
     localStorage.setItem(LS_MODEL, model);
     localStorage.setItem(LS_IMGMODEL, imgModel);
-    els.imgModelLabel.textContent = shortId(imgModel);
     updateStatus();
+    updateActiveModel();
     addSys("Сохранено. Текст: " + model + " · Рисование: " + imgModel);
   });
 
@@ -603,11 +503,7 @@
 
     if (mode === MODE_IMAGE) { generateImage(text); return; }
 
-    if (!updateStatus()) {
-      addErr("Добавьте ключ OpenRouter в настройках (⚙).");
-      document.querySelector("#settings").open = true;
-      return;
-    }
+    if (!updateStatus()) { addErr("Добавьте ключ OpenRouter в настройках (⚙)."); document.querySelector("#settings").open = true; return; }
 
     addUser(text);
     els.prompt.value = "";
@@ -634,7 +530,7 @@
       .finally(function () { setBusy(false); });
   }
 
-  /* ---------- Генерация изображений (только OpenRouter) ---------- */
+  /* ---------- Генерация изображений (OpenRouter) ---------- */
   function generateImage(promptText) {
     addUser("🎨 " + promptText);
     els.prompt.value = "";
@@ -644,12 +540,7 @@
     var w = parseInt(parts[0], 10) || 1024;
     var h = parseInt(parts[1], 10) || 1024;
 
-    if (!updateStatus()) {
-      addErr("Для генерации изображений нужен ключ OpenRouter (⚙).");
-      document.querySelector("#settings").open = true;
-      setBusy(false);
-      return;
-    }
+    if (!updateStatus()) { addErr("Для генерации изображений нужен ключ OpenRouter (⚙)."); document.querySelector("#settings").open = true; setBusy(false); return; }
 
     addSys("Рисует " + imgModel + " (" + w + "×" + h + ")...");
 
@@ -658,21 +549,12 @@
         showImagePreview(dataUrl);
         var m = /^data:([^;]+);base64,(.*)$/.exec(dataUrl);
         if (m) {
-          parent.postMessage({
-            type: "create-image",
-            imageBase64: m[2],
-            mime: m[1],
-            prompt: promptText,
-            width: w,
-            height: h
-          }, "*");
+          parent.postMessage({ type: "create-image", imageBase64: m[2], mime: m[1], prompt: promptText, width: w, height: h }, "*");
         } else {
           parent.postMessage({ type: "create-image", imageUrl: dataUrl, prompt: promptText, width: w, height: h }, "*");
         }
       })
-      .catch(function (err) {
-        addErr("Не удалось сгенерировать изображение: " + (err && err.message || err));
-      })
+      .catch(function (err) { addErr("Не удалось сгенерировать изображение: " + (err && err.message || err)); })
       .finally(function () { setBusy(false); });
   }
 
@@ -747,8 +629,7 @@
       return res.blob();
     }).catch(function (err) {
       if (attempts <= 1) throw err;
-      return new Promise(function (r) { setTimeout(r, 1200); })
-        .then(function () { return fetchWithRetry(url, attempts - 1); });
+      return new Promise(function (r) { setTimeout(r, 1200); }).then(function () { return fetchWithRetry(url, attempts - 1); });
     });
   }
 
@@ -761,9 +642,7 @@
     });
   }
 
-  function sendBuild(boards) {
-    parent.postMessage({ type: "build-design", boards: boards }, "*");
-  }
+  function sendBuild(boards) { parent.postMessage({ type: "build-design", boards: boards }, "*"); }
 
   function extractJson(raw) {
     var s = String(raw).trim();
@@ -785,9 +664,7 @@
       if (!parsed.boards) throw new Error("Нет поля boards");
       sendBuild(parsed.boards);
       addSys("JSON отправлен на холст.");
-    } catch (err) {
-      addErr("Некорректный JSON: " + String(err && err.message || err));
-    }
+    } catch (err) { addErr("Некорректный JSON: " + String(err && err.message || err)); }
   });
 
   window.addEventListener("message", function (event) {
