@@ -1,5 +1,5 @@
 /**
- * Penpot AI Assistant (OpenRouter) — v1.0.4
+ * Penpot AI Assistant (OpenRouter) — v1.1.0
  * ------------------------------------------
  * ИИ-помощник для Penpot:
  *   - чат-советы по дизайну (модель отвечает текстом в панели);
@@ -67,6 +67,41 @@ penpot.ui.onMessage((message) => {
       } catch (err) {
         sendToUI({ type: "text-result", ok: false, error: String((err && err.message) || err) });
       }
+      break;
+    }
+
+    case "create-image": {
+      const imgUrl = String(message.imageUrl || "");
+      const prompt = String(message.prompt || "AI Image");
+      const width = clampNum(message.width || 512, 64, 4096);
+      const height = clampNum(message.height || 512, 64, 4096);
+
+      if (!imgUrl) {
+        sendToUI({ type: "image-result", ok: false, error: "URL изображения пуст" });
+        break;
+      }
+
+      penpot.uploadMediaUrl(prompt.slice(0, 32), imgUrl)
+        .then((media) => {
+          const sel = penpot.selection || [];
+          if (sel.length > 0 && sel[0].fills) {
+            sel[0].fills = [{ fillOpacity: 1, fillImage: media }];
+            sendToUI({ type: "image-result", ok: true, mode: "filled" });
+          } else {
+            const shape = penpot.createRectangle();
+            shape.name = "AI: " + prompt.slice(0, 30);
+            shape.resize(width, height);
+            shape.fills = [{ fillOpacity: 1, fillImage: media }];
+            const center = penpot.viewport.center;
+            shape.x = center.x - width / 2;
+            shape.y = center.y - height / 2;
+            penpot.selection = [shape];
+            sendToUI({ type: "image-result", ok: true, mode: "created" });
+          }
+        })
+        .catch((err) => {
+          sendToUI({ type: "image-result", ok: false, error: String((err && err.message) || err) });
+        });
       break;
     }
   }
