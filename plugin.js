@@ -1,0 +1,304 @@
+/**
+ * Penpot AI Assistant (OpenRouter) — v1.0.0
+ * ------------------------------------------
+ * ИИ-помощник для Penpot:
+ *   - чат-советы по дизайну (модель отвечает текстом в панели);
+ *   - генерация макетов по промпту (модель возвращает JSON -> плагин рисует
+ *     борды/фигуры/текст прямо на холсте);
+ *   - применение палитры к выделению и вставка текста.
+ *
+ * Архитектура:
+ *   - index.html — панель UI (iframe). Она ходит в OpenRouter API напрямую
+ *     из браузера (CORS у OpenRouter открыт).
+ *   - plugin.js  — этот файл. Обрабатывает сообщения от панели и работает
+ *     с холстом через объект `penpot`.
+ *
+ * Каналы связи:
+ *   UI -> plugin: parent.postMessage(msg, "*")          -> penpot.ui.onMessage(...)
+ *   plugin -> UI: penpot.ui.sendMessage(msg)            -> window "message" в iframe
+ */
+
+penpot.ui.open("AI Assistant (OpenRouter)", "");
+
+penpot.ui.onMessage((message) => {
+  if (!message || typeof message !== "object" || !message.type) return;
+
+  switch (message.type) {
+    case "plugin-info": {
+      sendToUI({
+        type: "plugin-info",
+        theme: penpot.theme || "dark",
+        selection: (penpot.selection || []).length,
+      });
+      break;
+    }
+
+    case "build-design": {
+      try {
+        const created = buildDesign(message.boards || []);
+        sendToUI({ type: "build-result", ok: true, created: created });
+      } catch (err) {
+        sendToUI({ type: "build-result", ok: false, error: String((err && err.message) || err) });
+      }
+      break;
+    }
+
+    case "apply-palette": {
+      try {
+        const applied = applyPalette(message.colors || []);
+        sendToUI({ type: "palette-result", ok: true, applied: applied });
+      } catch (err) {
+        sendToUI({ type: "palette-result", ok: false, error: String((err && err.message) || err) });
+      }
+      break;
+    }
+
+    case "insert-text": {
+      try {
+        const t = penpot.createText(String(message.text || "Text"));
+        t.name = "AI Text";
+        t.fontId = "gfont-work-sans";
+        t.fontSize = "24";
+        t.fontWeight = "500";
+        positionAtViewport(t);
+        t.growType = "auto-width";
+        penpot.selection = [t];
+        sendToUI({ type: "text-result", ok: true });
+      } catch (err) {
+        sendToUI({ type: "text-result", ok: false, error: String((err && err.message) || err) });
+      }
+      break;
+    }
+  }
+});
+
+function sendToUI(payload) {
+  try {
+    penpot.ui.sendMessage(payload);
+  } catch (err) {
+    // Плагин продолжит работать даже если UI уже закрыт
+    console.error("[penpot-ai-plugin] sendMessage failed:", err);
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Построение макетов (JSON -> фигуры на холсте)                       */
+/* ------------------------------------------------------------------ */
+
+const SPACING_X = 80;
+
+/**
+ * Схема от ИИ (строгий JSON):
+ * {
+ *   "boards": [{
+ *     "name": "Login",
+ *     "width": 400, "height": 600, "background": "#f8fafc",
+ *     "children": [
+ *       { "type": "rect",   "name": "Card", "x": 20, "y": 100, "w": 360, "h": 160,
+ *         "fill": "#ffffff", "radius": 12 },
+ *       { "type": "text",   "name": "Title", "x": 40, "y": 130, "w": 320, "h": 40,
+ *         "text": "Войдите в аккаунт", "size": 24, "weight": 700, "align": "left", "color": "#0f172a" },
+ *       { "type": "rect",   "name": "Btn", "x": 80, "y": 460, "w": 240, "h": 48,
+ *         "fill": "#2563eb", "radius": 8, "label": "Войти", "labelColor": "#ffffff" }
+ *     ]
+ *   }]
+ * }
+ */
+function buildDesign(boards) {
+  const created = [];
+  const center = penpot.viewport.center;
+  let first = true;
+  let cursorX = 0;
+
+  for (const b of boards) {
+    const x = first ? center.x : cursorX + SPACING_X;
+    const y = center.y;
+    first = false;
+
+    const w = clampNum(b.width, 240, 2000);
+    const h = clampNum(b.height, 160, 2000);
+
+    const board = safeCreateBoard(b.name || "Screen", x, y, w, h);
+    if (board) {
+      if (b.background) applyFill(board, b.background, null);
+      created.push(board);
+    }
+
+    for (const c of (b.children || [])) {
+      const els = createElement(c, board ? board.x : x, board ? board.y : y);
+      for (const el of els) {
+        if (el) created.push(el);
+      }
+    }
+
+    cursorX = x;
+  }
+
+  // Группируем созданное в один объект (если API это поддерживает),
+  // иначе оставляем слои как есть — плагин всё равно работает.
+  let target = created[0];
+  if (created.length > 1) {
+    try {
+      target = penpot.group(created);
+    } catch (_) {
+      /* grouping unsupported — layers stay flat */
+    }
+  }
+  try {
+    penpot.selection = target ? [target] : [];
+  } catch (_) {
+    /* ignore */
+  }
+
+  return { shapes: created.length, boards: boards.length };
+}
+
+function createElement(c, bx, by) {
+  const type = String(c.type || "rect").toLowerCase();
+  const x = bx + (c.x || 0);
+  const y = by + (c.y || 0);
+  const w = clampNum(c.w || c.width, 2, 4000);
+  const h = clampNum(c.h || c.height, 2, 4000);
+  const out = [];
+
+  // Текст
+  if (type === "text") {
+    try {
+      const t = penpot.createText(String(c.text || c.label || ""));
+      t.name = c.name || "Text";
+      styleText(t, c);
+      t.x = x;
+      t.y = y;
+      out.push(t);
+    } catch (_) {
+      /* skip failed text node */
+    }
+    return out;
+  }
+
+  // Фигура
+  let shape = null;
+  try {
+    if (type === "ellipse" || type === "circle") {
+      shape = penpot.createEllipse({ name: c.name || "Ellipse", x: x, y: y, width: w, height: h });
+    } else {
+      shape = penpot.createRectangle({ name: c.name || "Rectangle", x: x, y: y, width: w, height: h });
+    }
+  } catch (_) {
+    return out;
+  }
+
+  shape.name = c.name || "Rectangle";
+  if (c.fill) applyFill(shape, c.fill, c.opacity);
+  if (c.radius != null) {
+    try { shape.borderRadius = clampNum(c.radius, 0, 500); } catch (_) { /* ignore */ }
+  }
+  if (c.stroke) {
+    try {
+      shape.strokes = [{
+        strokeColor: normalizeHex(c.stroke),
+        strokeWidth: clampNum(c.strokeWidth || 1, 0, 50),
+        strokeStyle: "solid",
+        strokeAlignment: "center",
+      }];
+    } catch (_) { /* ignore */ }
+  }
+  out.push(shape);
+
+  // Подпись на фигуре (кнопки, карточки)
+  if (c.label) {
+    try {
+      const lbl = penpot.createText(String(c.label));
+      lbl.name = shape.name + " / label";
+      styleText(lbl, {
+        size: c.labelSize || 16,
+        weight: c.labelWeight || 600,
+        color: c.labelColor || "#ffffff",
+        align: "center",
+      });
+      try { lbl.resize(w * 0.9, h * 0.6); } catch (_) { /* auto */ }
+      lbl.x = x + w / 2 - (w * 0.9) / 2;
+      lbl.y = y + h / 2 - 12;
+      out.push(lbl);
+    } catch (_) { /* ignore */ }
+  }
+
+  return out;
+}
+
+/* ------------------------------------------------------------------ */
+/* Вспомогательные функции                                             */
+/* ------------------------------------------------------------------ */
+
+function styleText(t, c) {
+  try {
+    // Порядок важен: сначала fontId, потом размер/вес (см. официальный пример create-text)
+    t.fontId = "gfont-work-sans";
+    if (c.size) t.fontSize = String(c.size);
+    if (c.weight) t.fontWeight = String(c.weight);
+    if (c.align) t.align = c.align;
+    if (c.grow) t.growType = c.grow;
+    if (c.color) applyFill(t, c.color, null);
+  } catch (_) { /* ignore */ }
+}
+
+function applyFill(shape, color, opacity) {
+  try {
+    const fillColor = normalizeHex(color);
+    const fillOpacity = opacity != null ? clampNum(opacity, 0, 1) : undefined;
+    shape.fills = fillOpacity != null
+      ? [{ fillColor: fillColor, fillOpacity: fillOpacity }]
+      : [{ fillColor: fillColor }];
+  } catch (_) { /* ignore */ }
+}
+
+function safeCreateBoard(name, x, y, w, h) {
+  try {
+    return penpot.createBoard({ name: name, x: x, y: y, width: w, height: h });
+  } catch (_) {
+    try {
+      const b = penpot.createBoard();
+      b.name = name || "Screen";
+      b.resize(w, h);
+      b.x = x;
+      b.y = y;
+      return b;
+    } catch (_) {
+      return null;
+    }
+  }
+}
+
+function positionAtViewport(shape) {
+  try {
+    const center = penpot.viewport.center;
+    shape.x = center.x;
+    shape.y = center.y;
+  } catch (_) { /* ignore */ }
+}
+
+function applyPalette(colors) {
+  const sel = penpot.selection || [];
+  if (!sel.length) return 0;
+
+  const list = colors.map(normalizeHex);
+  sel.forEach((shape, i) => {
+    applyFill(shape, list[i % list.length], null);
+  });
+  return sel.length;
+}
+
+function normalizeHex(color) {
+  if (typeof color !== "string") return "#000000";
+  const c = color.trim();
+  if (/^#[0-9a-fA-F]{3}$/.test(c)) {
+    return "#" + c[1] + c[1] + c[2] + c[2] + c[3] + c[3];
+  }
+  return c;
+}
+
+function clampNum(v, min, max) {
+  const n = Number(v);
+  if (Number.isNaN(n)) return min;
+  return Math.min(max, Math.max(min, n));
+}

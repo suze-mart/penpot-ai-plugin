@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>AI Assistant (OpenRouter)</title>
+<style>
+  :root {
+    --bg: #1e1e2e;
+    --bg2: #26263a;
+    --bg3: #30304a;
+    --text: #e4e4f0;
+    --muted: #9a9ab0;
+    --accent: #7c6cf0;
+    --accent2: #2563eb;
+    --ok: #34d399;
+    --err: #f87171;
+    --border: #3a3a55;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: "Segoe UI", -apple-system, Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    font-size: 13px;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    background: var(--bg2);
+    border-bottom: 1px solid var(--border);
+  }
+  header .logo {
+    width: 20px; height: 20px; border-radius: 5px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    display: flex; align-items: center; justify-content: center;
+    color: #fff; font-size: 11px; font-weight: 700;
+  }
+  header .title { font-weight: 600; }
+  header .status { margin-left: auto; font-size: 11px; color: var(--muted); }
+  header .status.ok { color: var(--ok); }
+
+  /* Режимы */
+  .modes { display: flex; gap: 6px; padding: 8px 10px 0; }
+  .modes button {
+    flex: 1;
+    padding: 6px;
+    border: 1px solid var(--border);
+    background: var(--bg2);
+    color: var(--muted);
+    border-radius: 7px;
+    cursor: pointer;
+    font-size: 12px;
+  }
+  .modes button.active {
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    color: #fff;
+    border-color: transparent;
+  }
+
+  /* Чат */
+  #log {
+    flex: 1;
+    overflow-y: auto;
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .msg { max-width: 92%; padding: 7px 9px; border-radius: 9px; line-height: 1.45; white-space: pre-wrap; word-wrap: break-word; }
+  .msg.user { align-self: flex-end; background: var(--accent); color: #fff; }
+  .msg.ai   { align-self: flex-start; background: var(--bg3); }
+  .msg.sys  { align-self: center; font-size: 11px; color: var(--muted); background: none; }
+  .msg.err  { align-self: flex-start; background: rgba(248,113,113,.15); color: var(--err); border: 1px solid var(--err); }
+  .msg .muted { color: var(--muted); font-size: 11px; }
+
+  /* Промпт */
+  #promptRow { display: flex; gap: 6px; padding: 8px 10px; }
+  #prompt {
+    flex: 1;
+    resize: none;
+    height: 46px;
+    padding: 8px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--bg2);
+    color: var(--text);
+    font-family: inherit;
+    font-size: 13px;
+  }
+  #sendBtn {
+    width: 56px;
+    border: none;
+    border-radius: 8px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    color: #fff;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  #sendBtn:disabled { opacity: .5; cursor: not-allowed; }
+
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 10px 8px; }
+  .chips button {
+    padding: 4px 9px;
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    background: var(--bg2);
+    color: var(--muted);
+    font-size: 11px;
+    cursor: pointer;
+  }
+  .chips button:hover { color: var(--text); }
+
+  /* JSON */
+  #jsonWrap { display: none; padding: 0 10px 8px; flex-direction: column; gap: 6px; }
+  #jsonWrap.open { display: flex; }
+  #jsonArea {
+    width: 100%;
+    height: 90px;
+    resize: vertical;
+    padding: 8px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: #17171f;
+    color: #a5e075;
+    font-family: Consolas, monospace;
+    font-size: 11px;
+    white-space: pre;
+  }
+  #sendJsonBtn {
+    align-self: flex-end;
+    padding: 6px 12px;
+    border: none;
+    border-radius: 7px;
+    background: var(--ok);
+    color: #06281a;
+    font-weight: 700;
+    cursor: pointer;
+  }
+
+  /* Настройки */
+  details { border-top: 1px solid var(--border); padding: 8px 10px; }
+  details summary { cursor: pointer; color: var(--muted); font-size: 12px; }
+  .field { display: flex; flex-direction: column; gap: 4px; margin-top: 8px; }
+  .field label { font-size: 11px; color: var(--muted); }
+  .field input, .field select {
+    padding: 7px;
+    border-radius: 7px;
+    border: 1px solid var(--border);
+    background: var(--bg2);
+    color: var(--text);
+    font-family: inherit;
+    font-size: 12px;
+  }
+  .hint { font-size: 10.5px; color: var(--muted); margin-top: 6px; line-height: 1.4; }
+  a { color: var(--accent); }
+</style>
+</head>
+<body>
+  <header>
+    <div class="logo">AI</div>
+    <div class="title">AI Assistant (OpenRouter)</div>
+    <div class="status" id="status">—</div>
+  </header>
+
+  <div class="modes">
+    <button id="modeDesign" class="active">Создать макет</button>
+    <button id="modeAdvice">Спросить совет</button>
+  </div>
+
+  <div id="log"></div>
+
+  <div class="chips" id="chips"></div>
+
+  <div id="jsonWrap">
+    <textarea id="jsonArea" spellcheck="false" placeholder='{ "boards": [] }'></textarea>
+    <button id="sendJsonBtn">Отправить на холст</button>
+  </div>
+
+  <div id="promptRow">
+    <textarea id="prompt" placeholder='Опишите экран, например: "экран логина: фон светло-серый, карточка входа, заголовок, две кнопки"'></textarea>
+    <button id="sendBtn">➤</button>
+  </div>
+
+  <details id="settings">
+    <summary>⚙ Настройки ИИ</summary>
+    <div class="field">
+      <label for="apiKey">Ключ OpenRouter (<a href="https://openrouter.ai/keys" target="_blank" rel="noopener">получить</a>)</label>
+      <input id="apiKey" type="password" placeholder="sk-or-v1-..." autocomplete="off" />
+    </div>
+    <div class="field">
+      <label for="model">Модель</label>
+      <input id="model" list="modelsList" placeholder="openai/gpt-4o-mini" />
+      <datalist id="modelsList">
+        <option value="openai/gpt-4o-mini"></option>
+        <option value="openai/gpt-4.1-mini"></option>
+        <option value="anthropic/claude-3.5-haiku"></option>
+        <option value="google/gemini-2.0-flash-001"></option>
+        <option value="deepseek/deepseek-chat-v3-0324:free"></option>
+        <option value="meta-llama/llama-3.1-8b-instruct:free"></option>
+        <option value="mistralai/mistral-7b-instruct:free"></option>
+      </datalist>
+    </div>
+    <button id="saveBtn" style="margin-top:8px;padding:6px 12px;border:none;border-radius:7px;background:var(--accent2);color:#fff;font-weight:600;cursor:pointer;">Сохранить</button>
+    <div class="hint">
+      Ключ и модель хранятся локально в браузере (localStorage этого плагина) и никуда не отправляются, кроме запросов к OpenRouter.com.
+    </div>
+  </details>
+
+<script>
+(function () {
+  "use strict";
+
+  var LS_KEY = "penpot-ai:key";
+  var LS_MODEL = "penpot-ai:model";
+  var LS_MODE = "penpot-ai:mode";
+  var MODE_DESIGN = "design";
+  var MODE_ADVICE = "advice";
+  var DEFAULT_MODEL = "openai/gpt-4o-mini";
+
+  var els = {
+    status: document.getElementById("status"),
+    log: document.getElementById("log"),
+    prompt: document.getElementById("prompt"),
+    sendBtn: document.getElementById("sendBtn"),
+    modeDesign: document.getElementById("modeDesign"),
+    modeAdvice: document.getElementById("modeAdvice"),
+    chips: document.getElementById("chips"),
+    jsonWrap: document.getElementById("jsonWrap"),
+    jsonArea: document.getElementById("jsonArea"),
+    sendJsonBtn: document.getElementById("sendJsonBtn"),
+    apiKey: document.getElementById("apiKey"),
+    model: document.getElementById("model"),
+    saveBtn: document.getElementById("saveBtn")
+  };
+
+  var mode = localStorage.getItem(LS_MODE) || MODE_DESIGN;
+  var apiKey = localStorage.getItem(LS_KEY) || "";
+  var model = localStorage.getItem(LS_MODEL) || DEFAULT_MODEL;
+  var busy = false;
+
+  /* ---------- init ---------- */
+  els.apiKey.value = apiKey;
+  els.model.value = model;
+  applyMode();
+
+  addSys("Панель ИИ-ассистента готова. В настройках (⚙ внизу) вставьте ключ OpenRouter и выберите модель.");
+  updateStatus();
+
+  var QUICK = [
+    "Экран логина (заголовок, поля, кнопка)",
+    "Дашборд аналитики (карточки метрик, график, таблица)",
+    "Лендинг продукта (hero, фичи, CTA)",
+    "Чат-приложение (список сообщений, поле ввода)",
+    "Корзина интернет-магазина",
+    "Карточка товара с ценой и кнопкой"
+  ];
+  QUICK.forEach(function (q) {
+    var b = document.createElement("button");
+    b.textContent = q.split(" (")[0];
+    b.title = q;
+    b.addEventListener("click", function () {
+      els.prompt.value = q;
+      els.prompt.focus();
+    });
+    els.chips.appendChild(b);
+  });
+
+  /* ---------- mode ---------- */
+  function applyMode() {
+    els.modeDesign.classList.toggle("active", mode === MODE_DESIGN);
+    els.modeAdvice.classList.toggle("active", mode === MODE_ADVICE);
+    els.jsonWrap.classList.toggle("open", mode === MODE_DESIGN);
+    els.prompt.placeholder = mode === MODE_DESIGN
+      ? 'Опишите экран, например: "экран логина: фон светло-серый, карточка входа, заголовок, две кнопки"'
+      : "Спросите совет по дизайну, например: какие цвета для банковского приложения?";
+  }
+
+  els.modeDesign.addEventListener("click", function () { mode = MODE_DESIGN; localStorage.setItem(LS_MODE, mode); applyMode(); });
+  els.modeAdvice.addEventListener("click", function () { mode = MODE_ADVICE; localStorage.setItem(LS_MODE, mode); applyMode(); });
+
+  /* ---------- settings ---------- */
+  els.saveBtn.addEventListener("click", function () {
+    apiKey = els.apiKey.value.trim();
+    model = els.model.value.trim() || DEFAULT_MODEL;
+    localStorage.setItem(LS_KEY, apiKey);
+    localStorage.setItem(LS_MODEL, model);
+    updateStatus();
+    addSys("Настройки сохранены. Модель: " + model + (apiKey ? " ✔" : " (ключ пуст!)"));
+  });
+
+  function updateStatus() {
+    var ok = apiKey.length > 10;
+    els.status.textContent = ok ? "ключ OK" : "нет ключа";
+    els.status.classList.toggle("ok", ok);
+    return ok;
+  }
+
+  /* ---------- log ---------- */
+  function addMsg(kind, text) {
+    var d = document.createElement("div");
+    d.className = "msg " + kind;
+    d.textContent = text;
+    els.log.appendChild(d);
+    els.log.scrollTop = els.log.scrollHeight;
+    return d;
+  }
+  function addUser(t) { return addMsg("user", t); }
+  function addAI(t) { return addMsg("ai", t); }
+  function addSys(t) { return addMsg("sys", t); }
+  function addErr(t) { return addMsg("err", t); }
+
+  /* ---------- OpenRouter ---------- */
+  function callOpenRouter(messages, opts) {
+    opts = opts || {};
+    return fetch("https://openrouter.ai/api/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Authorization": "Bearer " + apiKey,
+        "Content-Type": "application/json",
+        "HTTP-Referer": "https://penpot.app",
+        "X-Title": "Penpot AI Assistant"
+      },
+      body: JSON.stringify({
+        model: model,
+        messages: messages,
+        temperature: opts.temperature || 0.4,
+        response_format: opts.json ? { type: "json_object" } : undefined
+      })
+    }).then(function (res) {
+      if (!res.ok) {
+        return res.text().catch(function () { return ""; }).then(function (txt) {
+          throw new Error("OpenRouter " + res.status + ": " + (txt.slice(0, 220) || res.statusText));
+        });
+      }
+      return res.json();
+    }).then(function (data) {
+      var content = data && data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content;
+      if (!content) throw new Error("Модель вернула пустой ответ");
+      return content;
+    });
+  }
+
+  var DESIGN_SYSTEM = [
+    { role: "system", content: [
+      "Ты — дизайнер интерфейсов, работающий внутри плагина Penpot. По запросу пользователя возвращай ТОЛЬКО валидный JSON без markdown и пояснений (без ```json).",
+      "JSON описывает макеты по строгой схеме:",
+      '{"boards":[{"name":"Название экрана","width":число,"height":число,"background":"hex","children":[' +
+      '{"type":"rect|ellipse|text","name":"слой","x":число,"y":число,"w":число,"h":число,"fill":"hex","radius":число,' +
+      '"text":"текст","size":число,"weight":100-900,"align":"left|center|right","color":"hex","stroke":"hex","label":"подпись на фигуре","labelColor":"hex"}' +
+      ']}]}',
+      "Правила:",
+      "- Координаты x,y отсчитываются от левого верхнего угла борда, в px.",
+      "- Первый элемент борда использует type rect (фон/карточка).",
+      "- Для кнопок и карточек используй type rect + поле label.",
+      "- Если элемент назван кнопкой (button/кнопка), добавь label с текстом кнопки.",
+      "- Тексты на русском, осмысленные, реалистичные (укажи язык, если просили).",
+      "- Современная минималистичная палитра, отступы не меньше 16px.",
+      "- Если нужен список/карточки — создай 2–3 повторяющихся элемента.",
+      "- Возвращай ТОЛЬКО JSON."
+    ].join("\n") }
+  ];
+
+  /* ---------- send ---------- */
+  function setBusy(b) {
+    busy = b;
+    els.sendBtn.disabled = b;
+    els.sendBtn.textContent = b ? "…" : "➤";
+  }
+
+  function send() {
+    if (busy) return;
+    var text = els.prompt.value.trim();
+    if (!text) return;
+    if (!updateStatus()) {
+      addErr("Сначала добавьте ключ OpenRouter в настройках (⚙).");
+      document.querySelector("#settings").open = true;
+      return;
+    }
+
+    addUser(text);
+    els.prompt.value = "";
+    setBusy(true);
+
+    if (mode === MODE_ADVICE) {
+      callOpenRouter([
+        { role: "system", content: "Ты — опытный UI/UX-дизайнер. Отвечай кратко, по делу, структурированно (списком, если уместно)." },
+        { role: "user", content: text }
+      ], { temperature: 0.7 }).then(function (answer) {
+        addAI(answer);
+      }).catch(function (err) {
+        addErr(String(err && err.message || err));
+      }).finally(function () {
+        setBusy(false);
+      });
+      return;
+    }
+
+    // Режим "Создать макет"
+    callOpenRouter(DESIGN_SYSTEM.concat([{ role: "user", content: text }]), { json: true })
+      .then(function (raw) {
+        var parsed = extractJson(raw);
+        if (!parsed.boards) throw new Error("JSON не содержит поля boards");
+        els.jsonArea.value = JSON.stringify(parsed, null, 2);
+        sendBuild(parsed.boards);
+        return parsed;
+      })
+      .then(function (parsed) {
+        addSys("Генерация завершена: " + parsed.boards.length + " экран(а). Отправлено на холст. JSON ниже можно править и переотправить.");
+      })
+      .catch(function (err) {
+        addErr("Ошибка генерации: " + String(err && err.message || err));
+      })
+      .finally(function () {
+        setBusy(false);
+      });
+  }
+
+  function sendBuild(boards) {
+    parent.postMessage({ type: "build-design", boards: boards }, "*");
+  }
+
+  function extractJson(raw) {
+    var s = String(raw).trim();
+    s = s.replace(/^```(?:json)?\s*/i, "").replace(/```\s*$/i, "").trim();
+    var start = s.indexOf("{");
+    var end = s.lastIndexOf("}");
+    if (start === -1 || end === -1 || end < start) throw new Error("Модель не вернула JSON: " + s.slice(0, 120));
+    return JSON.parse(s.slice(start, end + 1));
+  }
+
+  els.sendBtn.addEventListener("click", send);
+  els.prompt.addEventListener("keydown", function (ev) {
+    if (ev.key === "Enter" && !ev.shiftKey) { ev.preventDefault(); send(); }
+  });
+
+  /* JSON вручную -> на холст */
+  els.sendJsonBtn.addEventListener("click", function () {
+    try {
+      var parsed = JSON.parse(els.jsonArea.value);
+      if (!parsed.boards) throw new Error("Нет поля boards");
+      sendBuild(parsed.boards);
+      addSys("JSON отправлен на холст: " + parsed.boards.length + " экран(а).");
+    } catch (err) {
+      addErr("Некорректный JSON: " + String(err && err.message || err));
+    }
+  });
+
+  /* Ответы плагина (build-result / palette-result / text-result / plugin-info) */
+  window.addEventListener("message", function (event) {
+    var d = event.data;
+    if (!d || typeof d !== "object" || !d.type) return;
+
+    if (d.type === "build-result") {
+      if (d.ok) {
+        addSys("✔ На холст добавлено: " + (d.created && d.created.shapes) + " фигур, бордов: " + (d.created && d.created.boards) + ".");
+      } else {
+        addErr("Плагин не смог построить макет: " + (d.error || "неизвестная ошибка"));
+      }
+    } else if (d.type === "palette-result") {
+      addSys(d.ok ? ("✔ Палитра применена к " + d.applied + " элементам.") : ("Ошибка: " + d.error));
+    } else if (d.type === "text-result") {
+      addSys(d.ok ? "✔ Текст добавлен на холст." : ("Ошибка: " + d.error));
+    } else if (d.type === "plugin-info") {
+      els.status.textContent = (d.theme || "—") + " · выделено: " + d.selection;
+    }
+  });
+
+  /* Запросить информацию у плагина */
+  try {
+    parent.postMessage({ type: "plugin-info" }, "*");
+  } catch (_) { /* ignore */ }
+})();
+</script>
+</body>
+</html>
