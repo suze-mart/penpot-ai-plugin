@@ -66,6 +66,20 @@
     border-color: transparent;
   }
 
+  /* Быстрые инструменты */
+  .tools { padding: 8px 12px 0; }
+  .tools button {
+    width: 100%;
+    padding: 7px;
+    border: 1px solid var(--border);
+    background: var(--bg2);
+    color: var(--text);
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 12.5px;
+  }
+  .tools button:hover { border-color: var(--accent); }
+
   /* Лог диалога */
   #log {
     flex: 0 0 auto;
@@ -167,6 +181,10 @@
     <button id="modeDesign" class="active">📐 Макет</button>
     <button id="modeImage">🎨 Картинка</button>
     <button id="modeAdvice">💬 Совет</button>
+  </div>
+
+  <div class="tools">
+    <button id="cyrBtn">🔤 Тест шрифтов (кириллица)</button>
   </div>
 
   <div id="log"></div>
@@ -272,7 +290,8 @@
     filterRow: document.getElementById("filterRow"),
     imgModel: document.getElementById("imgModel"),
     imgModelSelect: document.getElementById("imgModelSelect"),
-    saveBtn: document.getElementById("saveBtn")
+    saveBtn: document.getElementById("saveBtn"),
+    cyrBtn: document.getElementById("cyrBtn")
   };
 
   var mode = localStorage.getItem(LS_MODE) || MODE_DESIGN;
@@ -318,6 +337,11 @@
   els.modeDesign.addEventListener("click", function () { mode = MODE_DESIGN; localStorage.setItem(LS_MODE, mode); applyMode(); });
   els.modeImage.addEventListener("click", function () { mode = MODE_IMAGE; localStorage.setItem(LS_MODE, mode); applyMode(); });
   els.modeAdvice.addEventListener("click", function () { mode = MODE_ADVICE; localStorage.setItem(LS_MODE, mode); applyMode(); });
+
+  els.cyrBtn.addEventListener("click", function () {
+    addSys("Генерирую образцы всех шрифтов с русским текстом...");
+    parent.postMessage({ type: "test-cyrillic" }, "*");
+  });
 
   /* ---------- Модели OpenRouter ---------- */
   function loadCachedModels() {
@@ -761,6 +785,8 @@
 
     if (d.type === "build-result") {
       addSys(d.ok ? ("✔ На холст добавлено фигур: " + (d.created && d.created.shapes) + ".") : ("Ошибка построения: " + (d.error || "")));
+    } else if (d.type === "cyrillic-result") {
+      addSys(d.ok ? ("✔ Образцы готовы: " + d.count + " шрифтов на холсте. Смотрите, где русские буквы корректны.") : ("Ошибка: " + d.error));
     } else if (d.type === "image-result") {
       if (d.ok) {
         if (d.mode === "layered") addSys("✔ Разложено на слои: фон + объект + текст на холсте!");

@@ -1,5 +1,5 @@
 /**
- * Penpot AI Assistant (OpenRouter) — v1.5.0
+ * Penpot AI Assistant (OpenRouter) — v1.6.0
  * ------------------------------------------
  * ИИ-помощник для Penpot:
  *   - чат-советы по дизайну (модель отвечает текстом в панели);
@@ -143,6 +143,17 @@ penpot.ui.onMessage((message) => {
       break;
     }
 
+    case "test-cyrillic": {
+      try {
+        const families = getAvailableFontFamilies();
+        const count = buildCyrillicTest(families);
+        sendToUI({ type: "cyrillic-result", ok: true, count: count });
+      } catch (err) {
+        sendToUI({ type: "cyrillic-result", ok: false, error: String((err && err.message) || err) });
+      }
+      break;
+    }
+
     case "create-image": {
       const prompt = String(message.prompt || "AI Image");
       const width = clampNum(message.width || 512, 64, 4096);
@@ -237,6 +248,81 @@ function sendToUI(payload) {
 /* ------------------------------------------------------------------ */
 
 const SPACING_X = 80;
+
+/* ------------------------------------------------------------------ */
+/* Тест кириллицы: образцы всех доступных шрифтов                      */
+/* ------------------------------------------------------------------ */
+
+function getAvailableFontFamilies() {
+  const seen = {};
+  const out = [];
+  let all = [];
+  try { all = (penpot.fonts && penpot.fonts.all) || []; } catch (_) { all = []; }
+
+  all.forEach((f) => {
+    const fam = f && (f.fontFamily || f.name);
+    if (fam && !seen[fam]) {
+      seen[fam] = 1;
+      out.push(fam);
+    }
+  });
+
+  if (!out.length) {
+    [
+      "Golos Text", "Inter", "PT Sans", "PT Serif", "Roboto", "Montserrat",
+      "Manrope", "Onest", "Rubik", "Nunito", "Source Sans 3", "Noto Sans",
+      "Merriweather", "Lora", "Oswald", "JetBrains Mono", "Fira Code"
+    ].forEach((f) => out.push(f));
+  }
+  return out;
+}
+
+function buildCyrillicTest(families) {
+  const center = penpot.viewport.center;
+  const sample = "АаБбВвГг ЁёЖжЩщ Привет 123";
+  const perCol = 40;
+  const rowH = 44;
+  const colW = 560;
+  const x0 = center.x - 20;
+  const y0 = center.y - 20;
+  const created = [];
+  let n = 0;
+
+  families.forEach((fam, idx) => {
+    const col = Math.floor(idx / perCol);
+    const row = idx % perCol;
+    const x = x0 + col * colW;
+    const y = y0 + row * rowH;
+    try {
+      const title = penpot.createText(fam);
+      title.name = "Шрифт: " + fam;
+      title.fontId = "gfont-work-sans";
+      title.fontSize = "11";
+      title.x = x;
+      title.y = y;
+      title.growType = "auto-width";
+      try { title.fills = [{ fillColor: "#8a8aa0" }]; } catch (_) {}
+      created.push(title);
+
+      const sampleShape = penpot.createText(sample);
+      sampleShape.name = fam + " / образец";
+      try { sampleShape.fontFamily = fam; } catch (_) {}
+      sampleShape.fontSize = "22";
+      sampleShape.x = x;
+      sampleShape.y = y + 15;
+      sampleShape.growType = "auto-width";
+      created.push(sampleShape);
+      n++;
+    } catch (_) { /* пропустить проблемный шрифт */ }
+  });
+
+  try {
+    const target = created.length > 1 ? penpot.group(created) : created[0];
+    penpot.selection = target ? [target] : [];
+  } catch (_) { /* ignore */ }
+
+  return n;
+}
 
 /**
  * Схема от ИИ (строгий JSON):

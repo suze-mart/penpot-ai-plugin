@@ -3,8 +3,8 @@
 ИИ-помощник для [Penpot](https://penpot.app) на базе [OpenRouter](https://openrouter.ai)
 (OpenAI-совместимый API: GPT, Claude, Gemini, Llama, DeepSeek и др.)
 
-- Версия: **v1.5.0**
-- Дата релиза: **2026-10-17T14:24:00Z (UTC)**
+- Версия: **v1.6.0**
+- Дата релиза: **2026-10-17T19:58:00Z (UTC)**
 - Статус: активно разрабатывается
 
 ## Возможности
@@ -74,7 +74,7 @@
 1. Откройте любой **проект → файл** в Penpot.
 2. Откройте **Plugin Manager** (кнопка «Plugins» в меню или `Ctrl+Alt+P`).
 3. Нажмите **Add plugin** и вставьте ссылку на манифест **конкретной версии**:
-   `https://suze-mart.github.io/penpot-ai-plugin/v1.5.0/manifest.json`
+   `https://suze-mart.github.io/penpot-ai-plugin/v1.6.0/manifest.json`
 4. Нажмите **Install**. Плагин появится в списке и запускается из меню «Plugins».
 
 > При выпуске новой версии создаётся новая папка (`scripts/release.cmd vX.Y.Z`),
