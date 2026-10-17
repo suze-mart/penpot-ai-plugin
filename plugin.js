@@ -1,5 +1,5 @@
 /**
- * Penpot AI Assistant (OpenRouter) — v1.4.2
+ * Penpot AI Assistant (OpenRouter) — v1.5.0
  * ------------------------------------------
  * ИИ-помощник для Penpot:
  *   - чат-советы по дизайну (модель отвечает текстом в панели);
@@ -67,6 +67,79 @@ penpot.ui.onMessage((message) => {
       } catch (err) {
         sendToUI({ type: "text-result", ok: false, error: String((err && err.message) || err) });
       }
+      break;
+    }
+
+    case "compose-layers": {
+      const prompt = String(message.prompt || "AI");
+      const width = clampNum(message.width || 1024, 64, 4096);
+      const height = clampNum(message.height || 1024, 64, 4096);
+      const bgColor = String(message.background || "#ffffff");
+      const base64 = String(message.objectBase64 || "");
+      const mime = String(message.mime || "image/png");
+      const texts = Array.isArray(message.texts) ? message.texts : [];
+
+      if (!base64) {
+        sendToUI({ type: "image-result", ok: false, error: "Нет данных объекта" });
+        break;
+      }
+
+      const center = penpot.viewport.center;
+      const x = center.x - width / 2;
+      const y = center.y - height / 2;
+      const created = [];
+
+      // 1) Фон
+      try {
+        const bgShape = penpot.createRectangle();
+        bgShape.name = "Фон";
+        bgShape.resize(width, height);
+        bgShape.x = x;
+        bgShape.y = y;
+        try { bgShape.fills = [{ fillColor: normalizeHex(bgColor) }]; } catch (_) {}
+        created.push(bgShape);
+      } catch (_) {}
+
+      loadImageMedia("object", base64, mime, "")
+        .then((media) => {
+          // 2) Объект (прозрачный PNG поверх фона)
+          const obj = penpot.createRectangle();
+          obj.name = "Объект";
+          obj.resize(width, height);
+          obj.x = x;
+          obj.y = y;
+          obj.fills = [{ fillOpacity: 1, fillImage: media }];
+          created.push(obj);
+
+          // 3) Текстовые слои (идеальная кириллица)
+          let ty = y + height - 64 - texts.length * 46;
+          texts.forEach((t) => {
+            try {
+              const label = String(t && t.text ? t.text : t);
+              const tt = penpot.createText(label);
+              tt.name = "Текст: " + label.slice(0, 20);
+              tt.fontId = "gfont-work-sans";
+              tt.fontSize = "34";
+              tt.fontWeight = "700";
+              tt.growType = "auto-width";
+              tt.x = x + 40;
+              tt.y = ty;
+              try { tt.fills = [{ fillColor: "#111827" }]; } catch (_) {}
+              created.push(tt);
+              ty += 46;
+            } catch (_) {}
+          });
+
+          let target = created[0];
+          if (created.length > 1) {
+            try { target = penpot.group(created); } catch (_) { /* flat layers */ }
+          }
+          try { penpot.selection = target ? [target] : []; } catch (_) {}
+          sendToUI({ type: "image-result", ok: true, mode: "layered" });
+        })
+        .catch((err) => {
+          sendToUI({ type: "image-result", ok: false, error: String((err && err.message) || err) });
+        });
       break;
     }
 
