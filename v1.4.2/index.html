@@ -1,0 +1,671 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>AI Assistant (OpenRouter)</title>
+<style>
+  :root {
+    --bg: #1e1e2e;
+    --bg2: #26263a;
+    --bg3: #30304a;
+    --text: #e4e4f0;
+    --muted: #9a9ab0;
+    --accent: #7c6cf0;
+    --accent2: #2563eb;
+    --ok: #34d399;
+    --err: #f87171;
+    --border: #3a3a55;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    font-family: "Segoe UI", -apple-system, Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    font-size: 13px;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+  }
+  header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 9px 12px;
+    background: var(--bg2);
+    border-bottom: 1px solid var(--border);
+  }
+  header .logo {
+    width: 20px; height: 20px; border-radius: 5px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    display: flex; align-items: center; justify-content: center;
+    color: #fff; font-size: 11px; font-weight: 700;
+  }
+  header .title { font-weight: 600; font-size: 12.5px; }
+  header .status { margin-left: auto; font-size: 11px; color: var(--muted); }
+  header .status.ok { color: var(--ok); }
+
+  /* Режимы */
+  .modes { display: flex; gap: 6px; padding: 10px 12px 0; }
+  .modes button {
+    flex: 1;
+    padding: 8px 4px;
+    border: 1px solid var(--border);
+    background: var(--bg2);
+    color: var(--muted);
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 500;
+  }
+  .modes button.active {
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    color: #fff;
+    border-color: transparent;
+  }
+
+  /* Лог диалога */
+  #log {
+    flex: 0 0 auto;
+    max-height: 38vh;
+    min-height: 80px;
+    overflow-y: auto;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .msg { max-width: 92%; padding: 9px 12px; border-radius: 10px; line-height: 1.5; white-space: pre-wrap; word-wrap: break-word; }
+  .msg.user { align-self: flex-end; background: var(--accent); color: #fff; }
+  .msg.ai   { align-self: flex-start; background: var(--bg3); }
+  .msg.sys  { align-self: center; font-size: 11px; color: var(--muted); background: none; }
+  .msg.err  { align-self: flex-start; background: rgba(248,113,113,.15); color: var(--err); border: 1px solid var(--err); }
+  .img-card { margin-top: 8px; border-radius: 8px; overflow: hidden; border: 1px solid var(--border); max-width: 320px; }
+  .img-card img { width: 100%; display: block; }
+
+  /* Панель активной модели */
+  #activeModel {
+    display: flex; align-items: center; gap: 6px;
+    padding: 6px 12px 0;
+    font-size: 11px; color: var(--muted);
+  }
+  #activeModel .badge {
+    background: var(--bg3); border: 1px solid var(--border);
+    padding: 2px 8px; border-radius: 12px; color: var(--text);
+  }
+
+  /* Опции изображения */
+  #imgOptions { display: none; padding: 6px 12px 0; gap: 10px; align-items: center; font-size: 12px; color: var(--muted); flex-wrap: wrap; }
+  #imgOptions.open { display: flex; }
+  #imgOptions select {
+    padding: 5px 8px; border-radius: 7px; border: 1px solid var(--border);
+    background: var(--bg2); color: var(--text); font-size: 12px;
+  }
+
+  /* Ввод */
+  #promptRow { display: flex; gap: 8px; padding: 10px 12px 12px; }
+  #prompt {
+    flex: 1; resize: none; height: 74px; padding: 10px 12px;
+    border-radius: 10px; border: 1px solid var(--border);
+    background: var(--bg2); color: var(--text);
+    font-family: inherit; font-size: 13.5px; line-height: 1.45;
+  }
+  #sendBtn {
+    width: 56px; border: none; border-radius: 10px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    color: #fff; font-weight: 700; font-size: 16px; cursor: pointer;
+  }
+  #sendBtn:disabled { opacity: .5; cursor: not-allowed; }
+
+  /* Настройки */
+  details {
+    border-top: 1px solid var(--border);
+    background: var(--bg2);
+    flex: 0 0 auto;
+  }
+  details summary {
+    cursor: pointer;
+    color: var(--muted);
+    font-size: 12.5px;
+    font-weight: 600;
+    padding: 10px 12px;
+    flex: 0 0 auto;
+  }
+  .settings-body { padding: 0 12px 14px; }
+  .sec-title {
+    font-size: 11px; text-transform: uppercase; letter-spacing: .5px;
+    color: var(--accent); margin: 14px 0 4px; font-weight: 700;
+  }
+  .sec-desc { font-size: 11px; color: var(--muted); margin-bottom: 6px; }
+  .field { display: flex; flex-direction: column; gap: 5px; margin-top: 8px; }
+  .field label { font-size: 11.5px; color: var(--muted); display: flex; justify-content: space-between; align-items: center; }
+  .field input, .field select {
+    padding: 8px 10px; border-radius: 8px; border: 1px solid var(--border);
+    background: var(--bg); color: var(--text); font-family: inherit; font-size: 12.5px;
+  }
+  .filter-row { display: flex; flex-wrap: wrap; gap: 5px; }
+  .filter-row button {
+    padding: 3px 9px; font-size: 11px; border-radius: 12px;
+    border: 1px solid var(--border); background: var(--bg3); color: var(--muted); cursor: pointer;
+  }
+  .filter-row button.active { background: var(--accent); color: #fff; border-color: transparent; }
+  .hint { font-size: 11px; color: var(--muted); margin-top: 8px; line-height: 1.4; }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+</style>
+</head>
+<body>
+  <header>
+    <div class="logo">AI</div>
+    <div class="title">AI Assistant (OpenRouter)</div>
+    <div class="status" id="status">—</div>
+  </header>
+
+  <div class="modes">
+    <button id="modeDesign" class="active">📐 Макет</button>
+    <button id="modeImage">🎨 Картинка</button>
+    <button id="modeAdvice">💬 Совет</button>
+  </div>
+
+  <div id="log"></div>
+
+  <div id="activeModel">Модель: <span class="badge" id="activeModelName">—</span></div>
+
+  <div id="imgOptions">
+    <span>Размер:</span>
+    <select id="imgRatio">
+      <option value="1024x1024">1:1</option>
+      <option value="1344x768">16:9</option>
+      <option value="768x1344">9:16</option>
+    </select>
+  </div>
+
+  <div id="promptRow">
+    <textarea id="prompt" placeholder='Опишите экран: "экран логина: карточка, поля email и пароль, кнопка"'></textarea>
+    <button id="sendBtn">➤</button>
+  </div>
+
+  <details id="settings">
+    <summary>⚙ Настройки</summary>
+    <div class="settings-body">
+
+      <div class="sec-title">1 · Ключ OpenRouter</div>
+      <div class="sec-desc">Один ключ используется и для текста, и для генерации изображений.</div>
+      <div class="field">
+        <label for="apiKey"><span>API-ключ</span><a href="https://openrouter.ai/keys" target="_blank" rel="noopener">получить ↗</a></label>
+        <input id="apiKey" type="password" placeholder="sk-or-v1-..." autocomplete="off" />
+      </div>
+
+      <div class="sec-title">2 · Текстовая модель</div>
+      <div class="sec-desc">Для режимов «📐 Макет» (генерация JSON-макета) и «💬 Совет» (ответы по дизайну).</div>
+
+      <div class="filter-row" id="filterRow">
+        <button data-filter="all" class="active">Все</button>
+        <button data-filter="free">🎁 Бесплатные</button>
+        <button data-filter="openai">OpenAI</button>
+        <button data-filter="anthropic">Claude</button>
+        <button data-filter="deepseek">DeepSeek</button>
+        <button data-filter="google">Gemini</button>
+      </div>
+
+      <input id="modelSearch" type="text" placeholder="🔍 Поиск текстовой модели..." style="margin-top:6px;" />
+
+      <select id="modelSelect" style="margin-top:6px;">
+        <option value="openai/gpt-4o-mini">OpenAI: GPT-4o-mini</option>
+        <option value="meta-llama/llama-3.1-8b-instruct:free">🎁 Llama 3.1 8B (бесплатно)</option>
+        <option value="deepseek/deepseek-chat-v3-0324:free">🎁 DeepSeek Chat (бесплатно)</option>
+      </select>
+      <input id="model" placeholder="или ID вручную: openai/gpt-4o-mini" style="margin-top:6px;" />
+
+      <div class="sec-title">3 · Модель для рисования</div>
+      <div class="sec-desc">Только для режима «🎨 Картинка». Здесь модели, у которых на выходе изображение (Nano Banana, GPT-5 Image и т.п.).</div>
+
+      <select id="imgModelSelect">
+        <option value="google/gemini-2.5-flash-image">Google: Nano Banana (Gemini 2.5 Flash Image)</option>
+        <option value="google/gemini-3.1-flash-image">Google: Nano Banana 2</option>
+        <option value="openai/gpt-5-image-mini">OpenAI: GPT-5 Image Mini</option>
+      </select>
+      <input id="imgModel" placeholder="или ID вручную: google/gemini-2.5-flash-image" style="margin-top:6px;" />
+
+      <button id="saveBtn" style="margin-top:12px;padding:8px 14px;border:none;border-radius:8px;background:var(--accent2);color:#fff;font-weight:600;cursor:pointer;">Сохранить настройки</button>
+
+      <div class="hint">Ключ и модели хранятся локально в браузере. Текстовая и «рисующая» модели независимы: каждая применяется в своём режиме.</div>
+    </div>
+  </details>
+
+<script>
+(function () {
+  "use strict";
+
+  var LS_KEY = "penpot-ai:key";
+  var LS_MODEL = "penpot-ai:model";
+  var LS_IMGMODEL = "penpot-ai:imgmodel";
+  var LS_MODE = "penpot-ai:mode";
+  var LS_CACHE_MODELS = "penpot-ai:models-cache";
+  var MODE_DESIGN = "design";
+  var MODE_IMAGE = "image";
+  var MODE_ADVICE = "advice";
+  var DEFAULT_MODEL = "openai/gpt-4o-mini";
+  var DEFAULT_IMG_MODEL = "google/gemini-2.5-flash-image";
+
+  var els = {
+    status: document.getElementById("status"),
+    log: document.getElementById("log"),
+    prompt: document.getElementById("prompt"),
+    sendBtn: document.getElementById("sendBtn"),
+    modeDesign: document.getElementById("modeDesign"),
+    modeImage: document.getElementById("modeImage"),
+    modeAdvice: document.getElementById("modeAdvice"),
+    activeModelName: document.getElementById("activeModelName"),
+    imgOptions: document.getElementById("imgOptions"),
+    imgRatio: document.getElementById("imgRatio"),
+    apiKey: document.getElementById("apiKey"),
+    model: document.getElementById("model"),
+    modelSelect: document.getElementById("modelSelect"),
+    modelSearch: document.getElementById("modelSearch"),
+    filterRow: document.getElementById("filterRow"),
+    imgModel: document.getElementById("imgModel"),
+    imgModelSelect: document.getElementById("imgModelSelect"),
+    saveBtn: document.getElementById("saveBtn")
+  };
+
+  var mode = localStorage.getItem(LS_MODE) || MODE_DESIGN;
+  var apiKey = localStorage.getItem(LS_KEY) || "";
+  var model = localStorage.getItem(LS_MODEL) || DEFAULT_MODEL;
+  var imgModel = localStorage.getItem(LS_IMGMODEL) || DEFAULT_IMG_MODEL;
+  var busy = false;
+  var allModels = [];
+  var currentFilter = "all";
+
+  els.apiKey.value = apiKey;
+  els.model.value = model;
+  els.imgModel.value = imgModel;
+  applyMode();
+  updateStatus();
+  addSys("Плагин готов. Текстовая модель — для «Макет» и «Совет», модель рисования — для «Картинка».");
+
+  loadCachedModels();
+  fetchModels(false);
+
+  function shortId(id) { return String(id || "").split("/").pop(); }
+
+  function updateActiveModel() {
+    els.activeModelName.textContent = (mode === MODE_IMAGE) ? shortId(imgModel) : shortId(model);
+  }
+
+  function applyMode() {
+    els.modeDesign.classList.toggle("active", mode === MODE_DESIGN);
+    els.modeImage.classList.toggle("active", mode === MODE_IMAGE);
+    els.modeAdvice.classList.toggle("active", mode === MODE_ADVICE);
+    els.imgOptions.classList.toggle("open", mode === MODE_IMAGE);
+
+    if (mode === MODE_DESIGN) {
+      els.prompt.placeholder = 'Опишите экран: "экран логина: карточка, поля email и пароль, кнопка"';
+    } else if (mode === MODE_IMAGE) {
+      els.prompt.placeholder = 'Опишите изображение: "минималистичный 3D-логотип для финтех-сервиса"';
+    } else {
+      els.prompt.placeholder = 'Спросите совет по дизайну интерфейсов...';
+    }
+    updateActiveModel();
+  }
+
+  els.modeDesign.addEventListener("click", function () { mode = MODE_DESIGN; localStorage.setItem(LS_MODE, mode); applyMode(); });
+  els.modeImage.addEventListener("click", function () { mode = MODE_IMAGE; localStorage.setItem(LS_MODE, mode); applyMode(); });
+  els.modeAdvice.addEventListener("click", function () { mode = MODE_ADVICE; localStorage.setItem(LS_MODE, mode); applyMode(); });
+
+  /* ---------- Модели OpenRouter ---------- */
+  function loadCachedModels() {
+    try {
+      var raw = localStorage.getItem(LS_CACHE_MODELS);
+      if (raw) { allModels = JSON.parse(raw); populateModelSelect(); populateImageModels(); }
+    } catch (_) {}
+  }
+
+  function fetchModels(notify) {
+    if (notify) addSys("Загрузка списка моделей OpenRouter...");
+    fetch("https://openrouter.ai/api/v1/models")
+      .then(function (res) { return res.json(); })
+      .then(function (data) {
+        if (data && data.data && Array.isArray(data.data)) {
+          allModels = data.data;
+          try { localStorage.setItem(LS_CACHE_MODELS, JSON.stringify(allModels)); } catch (_) {}
+          populateModelSelect();
+          populateImageModels();
+          if (notify) addSys("✔ Загружено моделей: " + allModels.length);
+        }
+      })
+      .catch(function (err) { if (notify) addErr("Не удалось загрузить модели: " + (err.message || err)); });
+  }
+
+  function isImageModel(m) {
+    return m && m.architecture && (m.architecture.output_modalities || []).indexOf("image") !== -1;
+  }
+
+  function populateModelSelect() {
+    var query = (els.modelSearch.value || "").toLowerCase().trim();
+    var filtered = allModels.filter(function (m) {
+      if (isImageModel(m)) return false;
+      var id = (m.id || "").toLowerCase();
+      var name = (m.name || "").toLowerCase();
+      if (currentFilter === "free" && id.indexOf(":free") === -1) return false;
+      if (currentFilter === "openai" && id.indexOf("openai") === -1) return false;
+      if (currentFilter === "anthropic" && id.indexOf("anthropic") === -1) return false;
+      if (currentFilter === "deepseek" && id.indexOf("deepseek") === -1) return false;
+      if (currentFilter === "google" && id.indexOf("google") === -1) return false;
+      if (query && id.indexOf(query) === -1 && name.indexOf(query) === -1) return false;
+      return true;
+    });
+
+    els.modelSelect.innerHTML = "";
+    if (!filtered.length) {
+      var o = document.createElement("option"); o.textContent = "Ничего не найдено"; o.disabled = true;
+      els.modelSelect.appendChild(o); return;
+    }
+    filtered.slice(0, 300).forEach(function (m) {
+      var opt = document.createElement("option");
+      opt.value = m.id;
+      opt.textContent = (m.id.indexOf(":free") !== -1 ? "🎁 " : "") + (m.name || m.id);
+      if (m.id === model) opt.selected = true;
+      els.modelSelect.appendChild(opt);
+    });
+  }
+
+  function populateImageModels() {
+    var imgs = allModels.filter(isImageModel);
+    if (!imgs.length) return;
+    els.imgModelSelect.innerHTML = "";
+    imgs.forEach(function (m) {
+      var opt = document.createElement("option");
+      opt.value = m.id;
+      opt.textContent = m.name || m.id;
+      if (m.id === imgModel) opt.selected = true;
+      els.imgModelSelect.appendChild(opt);
+    });
+  }
+
+  els.modelSelect.addEventListener("change", function () { els.model.value = els.modelSelect.value; });
+  els.imgModelSelect.addEventListener("change", function () {
+    els.imgModel.value = els.imgModelSelect.value;
+    imgModel = els.imgModelSelect.value;
+    updateActiveModel();
+  });
+  els.modelSearch.addEventListener("input", populateModelSelect);
+
+  els.filterRow.addEventListener("click", function (e) {
+    if (e.target.tagName === "BUTTON") {
+      els.filterRow.querySelectorAll("button").forEach(function (b) { b.classList.remove("active"); });
+      e.target.classList.add("active");
+      currentFilter = e.target.getAttribute("data-filter") || "all";
+      populateModelSelect();
+    }
+  });
+
+  /* ---------- Настройки ---------- */
+  els.saveBtn.addEventListener("click", function () {
+    apiKey = els.apiKey.value.trim();
+    model = (els.model.value || els.modelSelect.value || DEFAULT_MODEL).trim();
+    imgModel = (els.imgModel.value || els.imgModelSelect.value || DEFAULT_IMG_MODEL).trim();
+    localStorage.setItem(LS_KEY, apiKey);
+    localStorage.setItem(LS_MODEL, model);
+    localStorage.setItem(LS_IMGMODEL, imgModel);
+    updateStatus();
+    updateActiveModel();
+    addSys("Сохранено. Текст: " + model + " · Рисование: " + imgModel);
+  });
+
+  function updateStatus() {
+    var ok = apiKey.length > 8;
+    els.status.textContent = ok ? "ключ OK" : "нет ключа";
+    els.status.classList.toggle("ok", ok);
+    return ok;
+  }
+
+  /* ---------- Лог ---------- */
+  function addMsg(kind, text) {
+    var d = document.createElement("div");
+    d.className = "msg " + kind;
+    d.textContent = text;
+    els.log.appendChild(d);
+    els.log.scrollTop = els.log.scrollHeight;
+    return d;
+  }
+  function addUser(t) { return addMsg("user", t); }
+  function addAI(t) { return addMsg("ai", t); }
+  function addSys(t) { return addMsg("sys", t); }
+  function addErr(t) { return addMsg("err", t); }
+
+  /* ---------- OpenRouter (текст) ---------- */
+  function callOpenRouter(messages, opts) {
+    opts = opts || {};
+    return fetch("https://openrouter.ai/api/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Authorization": "Bearer " + apiKey,
+        "Content-Type": "application/json",
+        "HTTP-Referer": "https://penpot.app",
+        "X-Title": "Penpot AI Assistant"
+      },
+      body: JSON.stringify({
+        model: model,
+        messages: messages,
+        temperature: opts.temperature || 0.4,
+        response_format: opts.json ? { type: "json_object" } : undefined
+      })
+    }).then(function (res) {
+      if (!res.ok) {
+        return res.text().catch(function () { return ""; }).then(function (txt) {
+          throw new Error("OpenRouter " + res.status + ": " + (txt.slice(0, 220) || res.statusText));
+        });
+      }
+      return res.json();
+    }).then(function (data) {
+      var content = data && data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content;
+      if (!content) throw new Error("Модель вернула пустой ответ");
+      return content;
+    });
+  }
+
+  var DESIGN_SYSTEM = [
+    { role: "system", content: [
+      "Ты — дизайнер интерфейсов внутри плагина Penpot. Возвращай ТОЛЬКО валидный JSON без markdown.",
+      '{"boards":[{"name":"Экран","width":число,"height":число,"background":"hex","children":[' +
+      '{"type":"rect|ellipse|text","name":"слой","x":число,"y":число,"w":число,"h":число,"fill":"hex","radius":число,' +
+      '"text":"текст","size":число,"weight":100-900,"align":"left|center|right","color":"hex","stroke":"hex","label":"подпись","labelColor":"hex"}' +
+      ']}]}',
+      "Правила:",
+      "- Всегда задавай background доски (hex), иначе фон будет прозрачным.",
+      "- Каждой фигуре (rect/ellipse) задавай fill (hex) или stroke — иначе она будет невидимой.",
+      "- x,y — от левого верхнего угла доски, в px; для кнопок/карточек type rect + label.",
+      "- Тексты реалистичные. Возвращай строгий JSON."
+    ].join("\n") }
+  ];
+
+  /* ---------- Отправка ---------- */
+  function setBusy(b) {
+    busy = b;
+    els.sendBtn.disabled = b;
+    els.sendBtn.textContent = b ? "…" : "➤";
+  }
+
+  function send() {
+    if (busy) return;
+    var text = els.prompt.value.trim();
+    if (!text) return;
+
+    if (mode === MODE_IMAGE) { generateImage(text); return; }
+
+    if (!updateStatus()) { addErr("Добавьте ключ OpenRouter в настройках (⚙)."); document.querySelector("#settings").open = true; return; }
+
+    addUser(text);
+    els.prompt.value = "";
+    setBusy(true);
+
+    if (mode === MODE_ADVICE) {
+      callOpenRouter([
+        { role: "system", content: "Ты — опытный UI/UX-дизайнер. Отвечай кратко, структурированно." },
+        { role: "user", content: text }
+      ], { temperature: 0.7 }).then(addAI).catch(function (e) { addErr(String(e && e.message || e)); })
+        .finally(function () { setBusy(false); });
+      return;
+    }
+
+    callOpenRouter(DESIGN_SYSTEM.concat([{ role: "user", content: text }]), { json: true })
+      .then(function (raw) {
+        var parsed = extractJson(raw);
+        if (!parsed.boards) throw new Error("JSON без поля boards");
+        sendBuild(parsed.boards);
+        addSys("Готово: макет добавлен на холст (" + parsed.boards.length + " экран).");
+      })
+      .catch(function (e) { addErr("Ошибка генерации макета: " + String(e && e.message || e)); })
+      .finally(function () { setBusy(false); });
+  }
+
+  /* ---------- Генерация изображений (OpenRouter) ---------- */
+  function generateImage(promptText) {
+    addUser("🎨 " + promptText);
+    els.prompt.value = "";
+    setBusy(true);
+
+    var parts = (els.imgRatio.value || "1024x1024").split("x");
+    var w = parseInt(parts[0], 10) || 1024;
+    var h = parseInt(parts[1], 10) || 1024;
+
+    if (!updateStatus()) { addErr("Для генерации изображений нужен ключ OpenRouter (⚙)."); document.querySelector("#settings").open = true; setBusy(false); return; }
+
+    addSys("Рисует " + imgModel + " (" + w + "×" + h + ")...");
+
+    imageViaOpenRouter(promptText)
+      .then(function (dataUrl) {
+        showImagePreview(dataUrl);
+        var m = /^data:([^;]+);base64,(.*)$/.exec(dataUrl);
+        if (m) {
+          parent.postMessage({ type: "create-image", imageBase64: m[2], mime: m[1], prompt: promptText, width: w, height: h }, "*");
+        } else {
+          parent.postMessage({ type: "create-image", imageUrl: dataUrl, prompt: promptText, width: w, height: h }, "*");
+        }
+      })
+      .catch(function (err) { addErr("Не удалось сгенерировать изображение: " + (err && err.message || err)); })
+      .finally(function () { setBusy(false); });
+  }
+
+  function showImagePreview(dataUrl) {
+    var d = document.createElement("div");
+    d.className = "msg ai";
+    d.innerHTML = "<div><b>Готово!</b> Добавляю на холст Penpot...</div><div class='img-card'><img src='" + dataUrl + "' /></div>";
+    els.log.appendChild(d);
+    els.log.scrollTop = els.log.scrollHeight;
+  }
+
+  function imageViaOpenRouter(promptText) {
+    return fetch("https://openrouter.ai/api/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Authorization": "Bearer " + apiKey,
+        "Content-Type": "application/json",
+        "HTTP-Referer": "https://penpot.app",
+        "X-Title": "Penpot AI Assistant"
+      },
+      body: JSON.stringify({
+        model: imgModel,
+        messages: [{ role: "user", content: promptText }],
+        modalities: ["image", "text"]
+      })
+    }).then(function (res) {
+      if (!res.ok) {
+        return res.text().catch(function () { return ""; }).then(function (txt) {
+          throw new Error("OpenRouter " + res.status + ": " + (txt.slice(0, 220) || res.statusText));
+        });
+      }
+      return res.json();
+    }).then(function (data) {
+      var msg = data && data.choices && data.choices[0] && data.choices[0].message;
+      var url = extractImageUrl(msg);
+      if (!url) throw new Error("Модель не вернула изображение (нужна image-модель, напр. Nano Banana)");
+      return toDataUrl(url);
+    });
+  }
+
+  function extractImageUrl(msg) {
+    if (!msg) return null;
+    if (Array.isArray(msg.images) && msg.images.length) {
+      var im = msg.images[0];
+      if (typeof im === "string") return im;
+      if (im && im.image_url && im.image_url.url) return im.image_url.url;
+      if (im && im.url) return im.url;
+    }
+    if (typeof msg.content === "string") {
+      var m1 = msg.content.match(/data:image\/[a-zA-Z]+;base64,[A-Za-z0-9+/=]+/);
+      if (m1) return m1[0];
+      var m2 = msg.content.match(/https?:\/\/\S+\.(png|jpe?g|webp)(\?\S*)?/i);
+      if (m2) return m2[0];
+    }
+    if (Array.isArray(msg.content)) {
+      for (var i = 0; i < msg.content.length; i++) {
+        var part = msg.content[i];
+        if (part && part.image_url && part.image_url.url) return part.image_url.url;
+      }
+    }
+    return null;
+  }
+
+  function toDataUrl(url) {
+    if (/^data:/.test(url)) return Promise.resolve(url);
+    return fetchWithRetry(url, 3).then(blobToBase64);
+  }
+
+  function fetchWithRetry(url, attempts) {
+    return fetch(url, { cache: "no-store" }).then(function (res) {
+      if (!res.ok) throw new Error("HTTP " + res.status);
+      return res.blob();
+    }).catch(function (err) {
+      if (attempts <= 1) throw err;
+      return new Promise(function (r) { setTimeout(r, 1200); }).then(function () { return fetchWithRetry(url, attempts - 1); });
+    });
+  }
+
+  function blobToBase64(blob) {
+    return new Promise(function (resolve, reject) {
+      var reader = new FileReader();
+      reader.onloadend = function () { resolve(reader.result); };
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+  }
+
+  function sendBuild(boards) { parent.postMessage({ type: "build-design", boards: boards }, "*"); }
+
+  function extractJson(raw) {
+    var s = String(raw).trim();
+    s = s.replace(/^```(?:json)?\s*/i, "").replace(/```\s*$/i, "").trim();
+    var start = s.indexOf("{");
+    var end = s.lastIndexOf("}");
+    if (start === -1 || end === -1 || end < start) throw new Error("Модель не вернула JSON: " + s.slice(0, 120));
+    return JSON.parse(s.slice(start, end + 1));
+  }
+
+  els.sendBtn.addEventListener("click", send);
+  els.prompt.addEventListener("keydown", function (ev) {
+    if (ev.key === "Enter" && !ev.shiftKey) { ev.preventDefault(); send(); }
+  });
+
+  window.addEventListener("message", function (event) {
+    var d = event.data;
+    if (!d || typeof d !== "object" || !d.type) return;
+
+    if (d.type === "build-result") {
+      addSys(d.ok ? ("✔ На холст добавлено фигур: " + (d.created && d.created.shapes) + ".") : ("Ошибка построения: " + (d.error || "")));
+    } else if (d.type === "image-result") {
+      if (d.ok) addSys(d.mode === "filled" ? "✔ Изображение залито в выделенную фигуру!" : "✔ Изображение создано на холсте!");
+      else addErr("Не удалось разместить изображение: " + d.error);
+    } else if (d.type === "plugin-info") {
+      els.status.textContent = (d.theme || "—") + " · выделено: " + d.selection;
+    }
+  });
+
+  try { parent.postMessage({ type: "plugin-info" }, "*"); } catch (_) {}
+})();
+</script>
+</body>
+</html>
