@@ -66,7 +66,7 @@
     border-color: transparent;
   }
 
-  /* Лог диалога — расширен */
+  /* Лог диалога */
   #log {
     flex: 1 1 40%;
     min-height: 90px;
@@ -101,20 +101,6 @@
   #imgOptions select {
     padding: 5px 8px; border-radius: 7px; border: 1px solid var(--border);
     background: var(--bg2); color: var(--text); font-size: 12px;
-  }
-
-  /* JSON макета */
-  #jsonWrap { display: none; padding: 8px 12px 0; flex-direction: column; gap: 6px; }
-  #jsonWrap.open { display: flex; }
-  #jsonArea {
-    width: 100%; height: 110px; resize: vertical; padding: 8px;
-    border-radius: 8px; border: 1px solid var(--border);
-    background: #17171f; color: #a5e075;
-    font-family: Consolas, monospace; font-size: 11.5px; white-space: pre;
-  }
-  #sendJsonBtn {
-    align-self: flex-end; padding: 6px 12px; border: none; border-radius: 7px;
-    background: var(--ok); color: #06281a; font-weight: 700; font-size: 12px; cursor: pointer;
   }
 
   /* Ввод */
@@ -200,11 +186,6 @@
     </select>
   </div>
 
-  <div id="jsonWrap">
-    <textarea id="jsonArea" spellcheck="false" placeholder='{ "boards": [] }'></textarea>
-    <button id="sendJsonBtn">Отправить на холст</button>
-  </div>
-
   <div id="promptRow">
     <textarea id="prompt" placeholder='Опишите экран: "экран логина: карточка, поля email и пароль, кнопка"'></textarea>
     <button id="sendBtn">➤</button>
@@ -284,9 +265,6 @@
     activeModelName: document.getElementById("activeModelName"),
     imgOptions: document.getElementById("imgOptions"),
     imgRatio: document.getElementById("imgRatio"),
-    jsonWrap: document.getElementById("jsonWrap"),
-    jsonArea: document.getElementById("jsonArea"),
-    sendJsonBtn: document.getElementById("sendJsonBtn"),
     apiKey: document.getElementById("apiKey"),
     model: document.getElementById("model"),
     modelSelect: document.getElementById("modelSelect"),
@@ -325,7 +303,6 @@
     els.modeDesign.classList.toggle("active", mode === MODE_DESIGN);
     els.modeImage.classList.toggle("active", mode === MODE_IMAGE);
     els.modeAdvice.classList.toggle("active", mode === MODE_ADVICE);
-    els.jsonWrap.classList.toggle("open", mode === MODE_DESIGN);
     els.imgOptions.classList.toggle("open", mode === MODE_IMAGE);
 
     if (mode === MODE_DESIGN) {
@@ -373,7 +350,7 @@
   function populateModelSelect() {
     var query = (els.modelSearch.value || "").toLowerCase().trim();
     var filtered = allModels.filter(function (m) {
-      if (isImageModel(m)) return false; // текстовый список без «рисующих» моделей
+      if (isImageModel(m)) return false;
       var id = (m.id || "").toLowerCase();
       var name = (m.name || "").toLowerCase();
       if (currentFilter === "free" && id.indexOf(":free") === -1) return false;
@@ -501,7 +478,11 @@
       '{"type":"rect|ellipse|text","name":"слой","x":число,"y":число,"w":число,"h":число,"fill":"hex","radius":число,' +
       '"text":"текст","size":число,"weight":100-900,"align":"left|center|right","color":"hex","stroke":"hex","label":"подпись","labelColor":"hex"}' +
       ']}]}',
-      "Правила: x,y — от левого верхнего угла борда, в px; для кнопок/карточек type rect + label; тексты реалистичные; строгий JSON."
+      "Правила:",
+      "- Всегда задавай background доски (hex), иначе фон будет прозрачным.",
+      "- Каждой фигуре (rect/ellipse) задавай fill (hex) или stroke — иначе она будет невидимой.",
+      "- x,y — от левого верхнего угла доски, в px; для кнопок/карточек type rect + label.",
+      "- Тексты реалистичные. Возвращай строгий JSON."
     ].join("\n") }
   ];
 
@@ -538,9 +519,8 @@
       .then(function (raw) {
         var parsed = extractJson(raw);
         if (!parsed.boards) throw new Error("JSON без поля boards");
-        els.jsonArea.value = JSON.stringify(parsed, null, 2);
         sendBuild(parsed.boards);
-        addSys("Готово: " + parsed.boards.length + " экран(ов) на холсте.");
+        addSys("Готово: макет добавлен на холст (" + parsed.boards.length + " экран).");
       })
       .catch(function (e) { addErr("Ошибка генерации макета: " + String(e && e.message || e)); })
       .finally(function () { setBusy(false); });
@@ -672,15 +652,6 @@
   els.sendBtn.addEventListener("click", send);
   els.prompt.addEventListener("keydown", function (ev) {
     if (ev.key === "Enter" && !ev.shiftKey) { ev.preventDefault(); send(); }
-  });
-
-  els.sendJsonBtn.addEventListener("click", function () {
-    try {
-      var parsed = JSON.parse(els.jsonArea.value);
-      if (!parsed.boards) throw new Error("Нет поля boards");
-      sendBuild(parsed.boards);
-      addSys("JSON отправлен на холст.");
-    } catch (err) { addErr("Некорректный JSON: " + String(err && err.message || err)); }
   });
 
   window.addEventListener("message", function (event) {

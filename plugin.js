@@ -1,5 +1,5 @@
 /**
- * Penpot AI Assistant (OpenRouter) — v1.3.2
+ * Penpot AI Assistant (OpenRouter) — v1.4.0
  * ------------------------------------------
  * ИИ-помощник для Penpot:
  *   - чат-советы по дизайну (модель отвечает текстом в панели);
@@ -18,7 +18,7 @@
  *   plugin -> UI: penpot.ui.sendMessage(msg)            -> window "message" в iframe
  */
 
-penpot.ui.open("AI Assistant (OpenRouter)", "index.html?v=1.3.2", { width: 640, height: 820 });
+penpot.ui.open("AI Assistant (OpenRouter)", "index.html?v=1.4.0", { width: 640, height: 820 });
 
 penpot.ui.onMessage((message) => {
   if (!message || typeof message !== "object" || !message.type) return;
@@ -187,6 +187,7 @@ function buildDesign(boards) {
   const center = penpot.viewport.center;
   let first = true;
   let cursorX = 0;
+  let firstBoard = null;
 
   for (const b of boards) {
     const x = first ? center.x : cursorX + SPACING_X;
@@ -198,32 +199,34 @@ function buildDesign(boards) {
 
     const board = safeCreateBoard(b.name || "Screen", x, y, w, h);
     if (board) {
-      if (b.background) applyFill(board, b.background, null);
+      if (b.background) {
+        applyFill(board, b.background, null);
+      } else {
+        // Без фона: убираем белую заливку доски по умолчанию
+        try { board.fills = []; } catch (_) { /* ignore */ }
+      }
       created.push(board);
+      if (!firstBoard) firstBoard = board;
     }
 
+    // Фигуры добавляем ВНУТРЬ доски (appendChild), чтобы двигались вместе с ней
     for (const c of (b.children || [])) {
-      const els = createElement(c, board ? board.x : x, board ? board.y : y);
-      for (const el of els) {
-        if (el) created.push(el);
+      const list = createElement(c, board ? board.x : x, board ? board.y : y);
+      for (const el of list) {
+        if (!el) continue;
+        if (board) {
+          try { board.appendChild(el); } catch (_) { /* keep on page if nesting unsupported */ }
+        }
+        created.push(el);
       }
     }
 
     cursorX = x;
   }
 
-  // Группируем созданное в один объект (если API это поддерживает),
-  // иначе оставляем слои как есть — плагин всё равно работает.
-  let target = created[0];
-  if (created.length > 1) {
-    try {
-      target = penpot.group(created);
-    } catch (_) {
-      /* grouping unsupported — layers stay flat */
-    }
-  }
+  // Выделяем созданную доску (без группировки — меньше артефактов)
   try {
-    penpot.selection = target ? [target] : [];
+    penpot.selection = firstBoard ? [firstBoard] : [];
   } catch (_) {
     /* ignore */
   }
@@ -267,7 +270,12 @@ function createElement(c, bx, by) {
   }
 
   shape.name = c.name || "Rectangle";
-  if (c.fill) applyFill(shape, c.fill, c.opacity);
+  if (c.fill) {
+    applyFill(shape, c.fill, c.opacity);
+  } else {
+    // Без заливки убираем «белый квадрат» по умолчанию
+    try { shape.fills = []; } catch (_) { /* ignore */ }
+  }
   if (c.radius != null) {
     try { shape.borderRadius = clampNum(c.radius, 0, 500); } catch (_) { /* ignore */ }
   }
@@ -286,17 +294,20 @@ function createElement(c, bx, by) {
   // Подпись на фигуре (кнопки, карточки)
   if (c.label) {
     try {
+      const size = clampNum(c.labelSize || 16, 8, 200);
       const lbl = penpot.createText(String(c.label));
       lbl.name = shape.name + " / label";
       styleText(lbl, {
-        size: c.labelSize || 16,
+        size: size,
         weight: c.labelWeight || 600,
         color: c.labelColor || "#ffffff",
         align: "center",
+        grow: "auto-width",
       });
-      try { lbl.resize(w * 0.9, h * 0.6); } catch (_) { /* auto */ }
-      lbl.x = x + w / 2 - (w * 0.9) / 2;
-      lbl.y = y + h / 2 - 12;
+      // Центрируем подпись на фигуре (оценка ширины текста), без ресайза в квадрат
+      const est = Math.min(w * 0.94, String(c.label).length * size * 0.58);
+      lbl.x = x + w / 2 - est / 2;
+      lbl.y = y + h / 2 - size * 0.7;
       out.push(lbl);
     } catch (_) { /* ignore */ }
   }
