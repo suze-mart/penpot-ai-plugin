@@ -1,5 +1,5 @@
 /**
- * Penpot AI Assistant (OpenRouter) — v1.6.0
+ * Penpot AI Assistant (OpenRouter) — v1.7.0
  * ------------------------------------------
  * ИИ-помощник для Penpot:
  *   - чат-советы по дизайну (модель отвечает текстом в панели);
@@ -143,13 +143,34 @@ penpot.ui.onMessage((message) => {
       break;
     }
 
-    case "test-cyrillic": {
+    case "list-fonts": {
       try {
         const families = getAvailableFontFamilies();
-        const count = buildCyrillicTest(families);
-        sendToUI({ type: "cyrillic-result", ok: true, count: count });
+        sendToUI({ type: "fonts-list", ok: true, families: families, total: families.length });
       } catch (err) {
-        sendToUI({ type: "cyrillic-result", ok: false, error: String((err && err.message) || err) });
+        sendToUI({ type: "fonts-list", ok: false, error: String((err && err.message) || err) });
+      }
+      break;
+    }
+
+    case "place-font": {
+      try {
+        const fam = String(message.family || "");
+        const count = placeFontSamples(fam ? [fam] : []);
+        sendToUI({ type: "place-result", ok: true, count: count, family: fam });
+      } catch (err) {
+        sendToUI({ type: "place-result", ok: false, error: String((err && err.message) || err) });
+      }
+      break;
+    }
+
+    case "place-fonts": {
+      try {
+        const fams = Array.isArray(message.families) ? message.families : [];
+        const count = placeFontSamples(fams);
+        sendToUI({ type: "place-result", ok: true, count: count, batch: true });
+      } catch (err) {
+        sendToUI({ type: "place-result", ok: false, error: String((err && err.message) || err) });
       }
       break;
     }
@@ -250,8 +271,11 @@ function sendToUI(payload) {
 const SPACING_X = 80;
 
 /* ------------------------------------------------------------------ */
-/* Тест кириллицы: образцы всех доступных шрифтов                      */
+/* Превью кириллицы: список отдаём в панель, на холст — по запросу     */
 /* ------------------------------------------------------------------ */
+
+const MAX_PLACE = 24;   // жёсткий предел слоёв за одну операцию (защита от зависания)
+const CYR_SAMPLE = "АаБбВвГг ЁёЖжЩщ Привет 123";
 
 function getAvailableFontFamilies() {
   const seen = {};
@@ -277,38 +301,41 @@ function getAvailableFontFamilies() {
   return out;
 }
 
-function buildCyrillicTest(families) {
+/**
+ * Строит образцы кириллицы на холсте. Рисует ИМЕННО переданный список
+ * (один шрифт или ограниченная пачка, максимум MAX_PLACE) — никаких
+ * «всех шрифтов сразу», из-за которых Penpot зависал.
+ * Возвращает число созданных гарнитур.
+ */
+function placeFontSamples(families) {
+  const list = (families || []).filter(Boolean).slice(0, MAX_PLACE);
+  if (!list.length) return 0;
+
   const center = penpot.viewport.center;
-  const sample = "АаБбВвГг ЁёЖжЩщ Привет 123";
-  const perCol = 40;
-  const rowH = 44;
-  const colW = 560;
+  const rowH = 46;
   const x0 = center.x - 20;
   const y0 = center.y - 20;
   const created = [];
   let n = 0;
 
-  families.forEach((fam, idx) => {
-    const col = Math.floor(idx / perCol);
-    const row = idx % perCol;
-    const x = x0 + col * colW;
-    const y = y0 + row * rowH;
+  list.forEach((fam, idx) => {
+    const y = y0 + idx * rowH;
     try {
       const title = penpot.createText(fam);
       title.name = "Шрифт: " + fam;
       title.fontId = "gfont-work-sans";
       title.fontSize = "11";
-      title.x = x;
+      title.x = x0;
       title.y = y;
       title.growType = "auto-width";
       try { title.fills = [{ fillColor: "#8a8aa0" }]; } catch (_) {}
       created.push(title);
 
-      const sampleShape = penpot.createText(sample);
+      const sampleShape = penpot.createText(CYR_SAMPLE);
       sampleShape.name = fam + " / образец";
       try { sampleShape.fontFamily = fam; } catch (_) {}
       sampleShape.fontSize = "22";
-      sampleShape.x = x;
+      sampleShape.x = x0;
       sampleShape.y = y + 15;
       sampleShape.growType = "auto-width";
       created.push(sampleShape);

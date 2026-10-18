@@ -168,6 +168,27 @@
   .hint { font-size: 11px; color: var(--muted); margin-top: 8px; line-height: 1.4; }
   a { color: var(--accent); text-decoration: none; }
   a:hover { text-decoration: underline; }
+
+  /* Превью шрифтов (кириллица) */
+  #fontPanel { display: none; flex-direction: column; margin: 8px 12px 0; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; background: var(--bg2); }
+  #fontPanel.open { display: flex; }
+  .fp-bar { display: flex; gap: 6px; padding: 8px; border-bottom: 1px solid var(--border); align-items: center; flex-wrap: wrap; }
+  .fp-bar input[type=text] { flex: 1; min-width: 120px; padding: 6px 8px; border-radius: 7px; border: 1px solid var(--border); background: var(--bg); color: var(--text); font-size: 12px; }
+  .fp-toggle { display: flex; align-items: center; gap: 4px; font-size: 11px; color: var(--muted); white-space: nowrap; }
+  .fp-meta { display: flex; align-items: center; gap: 8px; padding: 6px 8px; font-size: 11px; color: var(--muted); border-bottom: 1px solid var(--border); }
+  .fp-meta button { padding: 4px 10px; border-radius: 7px; border: 1px solid var(--border); background: var(--bg3); color: var(--text); cursor: pointer; font-size: 11px; }
+  .fp-meta button:hover { border-color: var(--accent); }
+  .fp-meta #fontCount { margin-right: auto; }
+  #fontList { max-height: 42vh; overflow-y: auto; }
+  .fp-row { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-bottom: 1px solid rgba(255,255,255,.04); }
+  .fp-row .fp-name { width: 150px; flex: 0 0 auto; font-size: 11px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .fp-row .fp-sample { flex: 1; font-size: 19px; line-height: 1.2; overflow: hidden; white-space: nowrap; color: var(--text); }
+  .fp-row .fp-badge { font-size: 11px; flex: 0 0 auto; }
+  .fp-row .fp-badge.yes { color: var(--ok); }
+  .fp-row .fp-badge.no  { color: var(--muted); }
+  .fp-row .fp-place { flex: 0 0 auto; padding: 3px 8px; border-radius: 6px; border: 1px solid var(--border); background: var(--bg3); color: var(--text); cursor: pointer; font-size: 11px; }
+  .fp-row .fp-place:hover { border-color: var(--accent); color: #fff; }
+  .fp-row.no-web .fp-sample { color: var(--muted); font-style: italic; }
 </style>
 </head>
 <body>
@@ -184,7 +205,20 @@
   </div>
 
   <div class="tools">
-    <button id="cyrBtn">🔤 Тест шрифтов (кириллица)</button>
+    <button id="cyrBtn">🔤 Превью шрифтов (кириллица)</button>
+  </div>
+
+  <div id="fontPanel">
+    <div class="fp-bar">
+      <input id="fontSearch" type="text" placeholder="🔍 Поиск шрифта..." />
+      <label class="fp-toggle"><input type="checkbox" id="fontCyrOnly" /> только с кириллицей</label>
+    </div>
+    <div class="fp-meta">
+      <span id="fontCount">—</span>
+      <button id="fontPlaceVisible" title="Отправить видимые на холст (до 24)">→ холст (до 24)</button>
+      <button id="fontClose" title="Закрыть">✕</button>
+    </div>
+    <div id="fontList"></div>
   </div>
 
   <div id="log"></div>
@@ -291,7 +325,14 @@
     imgModel: document.getElementById("imgModel"),
     imgModelSelect: document.getElementById("imgModelSelect"),
     saveBtn: document.getElementById("saveBtn"),
-    cyrBtn: document.getElementById("cyrBtn")
+    cyrBtn: document.getElementById("cyrBtn"),
+    fontPanel: document.getElementById("fontPanel"),
+    fontSearch: document.getElementById("fontSearch"),
+    fontCyrOnly: document.getElementById("fontCyrOnly"),
+    fontCount: document.getElementById("fontCount"),
+    fontPlaceVisible: document.getElementById("fontPlaceVisible"),
+    fontClose: document.getElementById("fontClose"),
+    fontList: document.getElementById("fontList")
   };
 
   var mode = localStorage.getItem(LS_MODE) || MODE_DESIGN;
@@ -338,9 +379,146 @@
   els.modeImage.addEventListener("click", function () { mode = MODE_IMAGE; localStorage.setItem(LS_MODE, mode); applyMode(); });
   els.modeAdvice.addEventListener("click", function () { mode = MODE_ADVICE; localStorage.setItem(LS_MODE, mode); applyMode(); });
 
+  /* ---------- Превью шрифтов (кириллица) ---------- */
+  var fontFamilies = [];
+  var fontCyr = {};
+  var fontLoaded = false;
+
+  function gfontsUrl(list) {
+    var txt = encodeURIComponent("АаБбВвГгЁёЖжЩщПривет123");
+    var parts = list.map(function (f) { return "family=" + String(f).trim().replace(/\s+/g, "+"); });
+    return "https://fonts.googleapis.com/css2?" + parts.join("&") + "&text=" + txt + "&display=swap";
+  }
+
+  function measureText(text, font) {
+    var c = document.createElement("canvas");
+    var ctx = c.getContext("2d");
+    ctx.font = font;
+    return ctx.measureText(text).width;
+  }
+
+  /* Кириллица «есть», если ширина строки в целевом шрифте отличается от чистого fallback. */
+  function detectCyr(family) {
+    var probe = "ЖЩЁжщЧб";
+    var base = measureText(probe, '40px "___no_such_font___"');
+    var w = measureText(probe, '40px "' + family + '", "___no_such_font___"');
+    return Math.abs(w - base) > 0.5;
+  }
+
+  function loadAllFonts(families) {
+    var chunks = [];
+    for (var i = 0; i < families.length; i += 15) chunks.push(families.slice(i, i + 15));
+    var idx = 0;
+    els.fontCount.textContent = "Загрузка образцов…";
+    function next() {
+      if (idx >= chunks.length) { finishDetect(families); return; }
+      var chunk = chunks[idx++];
+      var link = document.createElement("link");
+      link.rel = "stylesheet";
+      link.href = gfontsUrl(chunk);
+      link.onload = next;
+      link.onerror = next;
+      document.head.appendChild(link);
+    }
+    next();
+  }
+
+  function finishDetect(families) {
+    var run = function () {
+      families.forEach(function (f) { fontCyr[f] = detectCyr(f); });
+      renderFontList();
+    };
+    if (document.fonts && document.fonts.ready) {
+      document.fonts.ready.then(run).catch(run);
+    } else { run(); }
+  }
+
+  function currentVisibleFamilies() {
+    var q = (els.fontSearch.value || "").toLowerCase().trim();
+    var onlyCyr = els.fontCyrOnly.checked;
+    return fontFamilies.filter(function (f) {
+      if (q && f.toLowerCase().indexOf(q) === -1) return false;
+      if (onlyCyr && fontCyr[f] !== true) return false;
+      return true;
+    });
+  }
+
+  function makeFontRow(f) {
+    var row = document.createElement("div");
+    row.className = "fp-row" + (fontCyr[f] === false ? " no-web" : "");
+    row.setAttribute("data-family", f);
+
+    var name = document.createElement("span");
+    name.className = "fp-name";
+    name.title = f;
+    name.textContent = f;
+
+    var sample = document.createElement("span");
+    sample.className = "fp-sample";
+    sample.style.fontFamily = '"' + f + '"';
+    sample.textContent = "АаБбВв Гг ЁёЖж Щщ Привет 123";
+
+    var badge = document.createElement("span");
+    var known = Object.prototype.hasOwnProperty.call(fontCyr, f);
+    badge.className = "fp-badge " + (fontCyr[f] ? "yes" : "no");
+    badge.textContent = fontCyr[f] ? "✔" : (known ? "—" : "…");
+    badge.title = fontCyr[f] ? "Кириллица есть" : "Кириллица не найдена / нет веб-превью";
+
+    var place = document.createElement("button");
+    place.className = "fp-place";
+    place.textContent = "→";
+    place.title = "Отправить этот шрифт на холст";
+
+    row.appendChild(name); row.appendChild(sample); row.appendChild(badge); row.appendChild(place);
+    return row;
+  }
+
+  function renderFontList() {
+    var shown = currentVisibleFamilies();
+    els.fontList.innerHTML = "";
+    var frag = document.createDocumentFragment();
+    shown.slice(0, 400).forEach(function (f) { frag.appendChild(makeFontRow(f)); });
+    els.fontList.appendChild(frag);
+    els.fontCount.textContent = "Показано " + Math.min(shown.length, 400) + " из " + fontFamilies.length;
+  }
+
+  function openFontPreview() {
+    els.fontPanel.classList.add("open");
+    if (!fontLoaded) {
+      fontLoaded = true;
+      addSys("Запрашиваю список шрифтов Penpot…");
+      parent.postMessage({ type: "list-fonts" }, "*");
+      els.fontCount.textContent = "Ожидание списка шрифтов…";
+    }
+  }
+
   els.cyrBtn.addEventListener("click", function () {
-    addSys("Генерирую образцы всех шрифтов с русским текстом...");
-    parent.postMessage({ type: "test-cyrillic" }, "*");
+    if (els.fontPanel.classList.contains("open")) {
+      els.fontPanel.classList.remove("open");
+    } else {
+      openFontPreview();
+    }
+  });
+  els.fontClose.addEventListener("click", function () { els.fontPanel.classList.remove("open"); });
+  els.fontSearch.addEventListener("input", renderFontList);
+  els.fontCyrOnly.addEventListener("change", renderFontList);
+  els.fontPlaceVisible.addEventListener("click", function () {
+    var visible = currentVisibleFamilies().slice(0, 24);
+    if (!visible.length) { addSys("Нечего отправлять на холст."); return; }
+    parent.postMessage({ type: "place-fonts", families: visible }, "*");
+    addSys("Отправляю на холст " + visible.length + " шрифт(ов)…");
+  });
+  els.fontList.addEventListener("click", function (e) {
+    var target = e.target;
+    while (target && target !== els.fontList && !(target.classList && target.classList.contains("fp-place"))) {
+      target = target.parentNode;
+    }
+    if (!target || !target.classList || !target.classList.contains("fp-place")) return;
+    var row = target.parentNode;
+    var fam = row && row.getAttribute("data-family");
+    if (!fam) return;
+    parent.postMessage({ type: "place-font", family: fam }, "*");
+    addSys("Отправляю на холст: " + fam);
   });
 
   /* ---------- Модели OpenRouter ---------- */
@@ -785,8 +963,17 @@
 
     if (d.type === "build-result") {
       addSys(d.ok ? ("✔ На холст добавлено фигур: " + (d.created && d.created.shapes) + ".") : ("Ошибка построения: " + (d.error || "")));
-    } else if (d.type === "cyrillic-result") {
-      addSys(d.ok ? ("✔ Образцы готовы: " + d.count + " шрифтов на холсте. Смотрите, где русские буквы корректны.") : ("Ошибка: " + d.error));
+    } else if (d.type === "fonts-list") {
+      if (d.ok && Array.isArray(d.families)) {
+        fontFamilies = d.families;
+        addSys("Шрифтов получено: " + fontFamilies.length + ". Загружаю образцы…");
+        renderFontList();
+        loadAllFonts(fontFamilies);
+      } else {
+        addErr("Не удалось получить шрифты: " + (d.error || ""));
+      }
+    } else if (d.type === "place-result") {
+      addSys(d.ok ? ("✔ На холст добавлено гарнитур: " + d.count + ".") : ("Ошибка размещения: " + d.error));
     } else if (d.type === "image-result") {
       if (d.ok) {
         if (d.mode === "layered") addSys("✔ Разложено на слои: фон + объект + текст на холсте!");
