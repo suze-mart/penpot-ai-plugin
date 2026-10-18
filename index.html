@@ -46,6 +46,15 @@
   header .title { font-weight: 600; font-size: 12.5px; }
   header .status { margin-left: auto; font-size: 11px; color: var(--muted); }
   header .status.ok { color: var(--ok); }
+  header #collapseBtn {
+    flex: 0 0 auto; width: 22px; height: 22px; padding: 0;
+    border-radius: 6px; border: 1px solid var(--border);
+    background: var(--bg3); color: var(--text); cursor: pointer;
+    font-size: 12px; line-height: 1;
+  }
+  header #collapseBtn:hover { border-color: var(--accent); color: #fff; }
+  body.collapsed > *:not(header) { display: none !important; }
+  body.collapsed header { border-bottom: none; }
 
   /* Режимы */
   .modes { display: flex; gap: 6px; padding: 10px 12px 0; }
@@ -192,10 +201,11 @@
 </style>
 </head>
 <body>
-  <header>
+  <header id="header">
     <div class="logo">AI</div>
     <div class="title">AI Assistant (OpenRouter)</div>
     <div class="status" id="status">—</div>
+    <button id="collapseBtn" title="Свернуть окно">▁</button>
   </header>
 
   <div class="modes">
@@ -332,7 +342,9 @@
     fontCount: document.getElementById("fontCount"),
     fontPlaceVisible: document.getElementById("fontPlaceVisible"),
     fontClose: document.getElementById("fontClose"),
-    fontList: document.getElementById("fontList")
+    fontList: document.getElementById("fontList"),
+    header: document.getElementById("header"),
+    collapseBtn: document.getElementById("collapseBtn")
   };
 
   var mode = localStorage.getItem(LS_MODE) || MODE_DESIGN;
@@ -982,8 +994,46 @@
       } else addErr("Не удалось разместить изображение: " + d.error);
     } else if (d.type === "plugin-info") {
       els.status.textContent = (d.theme || "—") + " · выделено: " + d.selection;
+    } else if (d.type === "ui-size") {
+      // Penpot может ограничивать минимальный размер окна — учитываем это в подсказке
+      if (d.size && collapsed && d.size.height > SIZE_COLLAPSED.height + 40) {
+        els.collapseBtn.title = "Свернуть окно (Penpot ограничил минимальную высоту)";
+      }
     }
   });
+
+  /* ---------- Сворачивание окна ---------- */
+  var LS_COLLAPSED = "penpot-ai:collapsed";
+  var SIZE_EXPANDED = { width: 640, height: 820 };
+  var SIZE_COLLAPSED = { width: 420, height: 60 };
+  var collapsed = localStorage.getItem(LS_COLLAPSED) === "1";
+
+  function applyCollapsedUi() {
+    document.body.classList.toggle("collapsed", collapsed);
+    els.collapseBtn.textContent = collapsed ? "▔" : "▁";
+    els.collapseBtn.title = collapsed ? "Развернуть окно" : "Свернуть окно";
+  }
+
+  function setCollapsed(v) {
+    collapsed = !!v;
+    localStorage.setItem(LS_COLLAPSED, collapsed ? "1" : "0");
+    applyCollapsedUi();
+    var s = collapsed ? SIZE_COLLAPSED : SIZE_EXPANDED;
+    parent.postMessage({ type: "ui-resize", width: s.width, height: s.height }, "*");
+  }
+
+  els.collapseBtn.addEventListener("click", function (e) {
+    e.stopPropagation();
+    setCollapsed(!collapsed);
+  });
+  els.header.addEventListener("dblclick", function () { setCollapsed(!collapsed); });
+
+  applyCollapsedUi();
+  if (collapsed) {
+    setTimeout(function () {
+      parent.postMessage({ type: "ui-resize", width: SIZE_COLLAPSED.width, height: SIZE_COLLAPSED.height }, "*");
+    }, 200);
+  }
 
   try { parent.postMessage({ type: "plugin-info" }, "*"); } catch (_) {}
 })();

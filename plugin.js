@@ -1,5 +1,5 @@
 /**
- * Penpot AI Assistant (OpenRouter) — v1.7.0
+ * Penpot AI Assistant (OpenRouter) — v1.7.1
  * ------------------------------------------
  * ИИ-помощник для Penpot:
  *   - чат-советы по дизайну (модель отвечает текстом в панели);
@@ -29,7 +29,20 @@ penpot.ui.onMessage((message) => {
         type: "plugin-info",
         theme: penpot.theme || "dark",
         selection: (penpot.selection || []).length,
+        size: safeUiSize(),
       });
+      break;
+    }
+
+    case "ui-resize": {
+      try {
+        const w = clampNum(message.width || 640, 200, 2000);
+        const h = clampNum(message.height || 820, 48, 2000);
+        penpot.ui.resize(w, h);
+        sendToUI({ type: "ui-size", size: safeUiSize() });
+      } catch (err) {
+        sendToUI({ type: "ui-size", ok: false, error: String((err && err.message) || err) });
+      }
       break;
     }
 
@@ -262,6 +275,11 @@ function sendToUI(payload) {
     // Плагин продолжит работать даже если UI уже закрыт
     console.error("[penpot-ai-plugin] sendMessage failed:", err);
   }
+}
+
+/** Безопасно возвращает текущий размер модального окна плагина (или null). */
+function safeUiSize() {
+  try { return (penpot.ui && penpot.ui.size) || null; } catch (_) { return null; }
 }
 
 /* ------------------------------------------------------------------ */
